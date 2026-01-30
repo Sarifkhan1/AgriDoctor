@@ -12,12 +12,12 @@
 
 ## 📋 Student Information
 
-| Field              | Details                                                                    |
-| ------------------ | -------------------------------------------------------------------------- |
-| **Student Name**   | Mohammad Sarif Khan                                                        |
-| **Student Number** | 2238572                                                                    |
-| **Project**        | AI-4-Creativity Project                                                    |
-| **Repository**     | [GitHub - Sarifkhan1/AgriDoctor](https://github.com/Sarifkhan1/AgriDoctor) |
+| Field              | Details                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| **Student Name**   | Mohammad Sarif Khan                                                                                                    |
+| **Student Number** | 2238572                                                                                                                |
+| **Project**        | AI-4-Creativity Project                                                                                                |
+| **Repository**     | [GitHub - Sarifkhan1/AgriDoctor](https://github.com/Sarifkhan1/AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor) |
 
 ---
 
@@ -200,8 +200,8 @@ This is the recommended setup method for the best compatibility with ML dependen
 #### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/Sarifkhan1/AgriDoctor.git
-cd AgriDoctor
+git clone https://github.com/Sarifkhan1/AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor.git
+cd AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor
 ```
 
 #### Step 2: Create Conda Environment
@@ -262,8 +262,8 @@ This is the easiest method if you have Docker installed.
 #### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/Sarifkhan1/AgriDoctor.git
-cd AgriDoctor
+git clone https://github.com/Sarifkhan1/AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor.git
+cd AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor
 ```
 
 #### Step 2: Build and Run with Docker Compose
@@ -294,8 +294,8 @@ If you prefer not to use Conda, you can use Python's built-in venv.
 #### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/Sarifkhan1/AgriDoctor.git
-cd AgriDoctor
+git clone https://github.com/Sarifkhan1/AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor.git
+cd AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor
 ```
 
 #### Step 2: Create Virtual Environment
