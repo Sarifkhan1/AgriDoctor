@@ -672,42 +672,161 @@ def generate_mock_prediction(case, media, metadata) -> dict:
     """Generate a mock prediction for demo purposes."""
     crop = case["crop_name"] or "tomato"
     
-    # Mock disease predictions by crop
-    disease_map = {
-        "tomato": ("TOM_EARLY_BLIGHT", ["TOM_SEPTORIA"], 0.82),
-        "potato": ("POT_LATE_BLIGHT", ["POT_EARLY_BLIGHT"], 0.78),
-        "rice": ("RICE_BLAST", ["RICE_BROWN_SPOT"], 0.85),
-        "maize": ("MAIZE_RUST", ["MAIZE_NLB"], 0.76),
-        "chili": ("CHILI_ANTHRAC", ["CHILI_LEAF_CURL"], 0.80),
-        "cucumber": ("CUC_POWDERY", ["CUC_DOWNY"], 0.83)
-    }
-    
-    primary, secondary, confidence = disease_map.get(
-        crop.lower(), ("TOM_EARLY_BLIGHT", [], 0.75)
-    )
-    
-    return {
-        "primary_label": primary,
-        "secondary_labels": secondary,
-        "confidence": confidence,
-        "severity_score": 0.45,
-        "urgency_level": "medium",
-        "advice": {
-            "summary": f"Your {crop} plant likely has {primary.replace('_', ' ').title()}",
+    # Detailed disease knowledge base
+    knowledge_base = {
+        "tomato": {
+            "primary": "TOM_EARLY_BLIGHT",
+            "secondary": ["TOM_SEPTORIA", "TOM_BACTERIAL_SPOT"],
+            "confidence": 0.89,
+            "severity": 0.45,
+            "urgency": "medium",
+            "title": "Early Blight (Alternaria solani)",
+            "summary": "The analysis detects **Early Blight**, a common fungal disease caused by *Alternaria solani*. It typically starts on lower leaves as circular brown spots with concentric rings ('bullseye' pattern). If left untreated, it causes yellowing of leaves (chlorosis), defoliation, and sunscald on the fruit due to loss of leaf cover.",
             "what_to_do_now": [
-                "Remove affected leaves and dispose away from farm",
-                "Improve air circulation around plants",
-                "Water at base of plants, avoid wetting leaves"
+                "**Step 1: Pruning & Sanitation**: Immediately prune off all infected lower leaves using sterilized shears. Dip tools in 10% bleach solution between cuts. Dispose of debris far from the garden (do not compost).",
+                "**Step 2: Fungicide Application**: Apply a copper-based fungicide or products containing Mancozeb or Chlorothalonil. For organic options, use Bacillus subtilis biofungicide. Repeat every 7–10 days.",
+                "**Step 3: Modify Watering**: Stop overhead irrigation immediately. Water only at the base of the plant to keep foliage dry, as the fungus requires moisture to spread."
             ],
             "prevention": [
-                "Rotate crops next season",
-                "Use resistant varieties when available"
+                "**Crop Rotation**: Do not plant tomatoes, potatoes, or eggplants in the same soil for at least 3 years.",
+                "**Mulching**: maintain a 2-3 inch layer of organic mulch (straw/leaves) at the base to prevent soil spores from splashing onto lower leaves.",
+                "**Stake & Air Flow**: Stake plants and prune suckers to improve air circulation, reducing humidity around the leaves."
             ],
             "when_to_get_help": [
-                "If more than 50% of plant is affected",
-                "If symptoms spread to neighboring plants quickly"
+                "If lesions appear on the stems (collar rot) which can kill the plant.",
+                "If more than 50% of the foliage is yellowing despite treatment."
+            ]
+        },
+        "potato": {
+            "primary": "POT_LATE_BLIGHT",
+            "secondary": ["POT_EARLY_BLIGHT", "POT_VIRUS_Y"],
+            "confidence": 0.92,
+            "severity": 0.85,
+            "urgency": "high",
+            "title": "Late Blight (Phytophthora infestans)",
+            "summary": "This is a **critical detection** of Late Blight, the devastating disease responsible for the Irish Potato Famine. It appears as large, dark/oily lesions on leaves and stems, often with white fungal growth on the underside in humid weather. It can destroy an entire crop in days.",
+            "what_to_do_now": [
+                "**Step 1: Immediate Removal**: Verify if only a few plants are affected. If so, pull them out entirely and bag them on site to prevent spore release. Destroy by burning.",
+                "**Step 2: Chemical Control**: For remaining healthy plants, apply a protective fungicide immediately (e.g., Chlorothalonil, Mancozeb). Late blight is difficult to cure once established.",
+                "**Step 3: Desiccation**: If the crop is near harvest, kill the vines (leaves/stems) immediately to prevent the fungus from travelling down the stem and infecting the tubers.",
+                "**Step 4: Harvest Care**: Wait 2-3 weeks after vine death before harvesting to ensure spore death."
             ],
-            "safety_note": "This is AI-generated guidance. Consult local experts for confirmation."
+            "prevention": [
+                "**Certified Seed**: Only plant certified disease-free seed potatoes.",
+                "**Eliminate Culls**: Destroy any volunteer potatoes or piles of culled potatoes near the field as they harbor the pathogen over winter.",
+                "**Resistant Varieties**: Choose resistant varieties like 'Sarpo Mira' or 'Defender'."
+            ],
+            "when_to_get_help": [
+                "**IMMEDIATELY**: Contact your local agricultural extension office as Late Blight outbreaks often require community warnings."
+            ]
+        },
+        "rice": {
+            "primary": "RICE_BLAST",
+            "secondary": ["RICE_BROWN_SPOT", "RICE_SHEATH_BLIGHT"],
+            "confidence": 0.85,
+            "severity": 0.60,
+            "urgency": "medium",
+            "title": "Rice Blast (Magnaporthe oryzae)",
+            "summary": "The symptoms indicate **Rice Blast**, one of the most destructive rice diseases. It forms spindle-shaped lesions with whitish/gray centers and reddish-brown borders. It can affect leaves, nodes, and the neck of the panicle (Neck Blast), which causes severe yield loss.",
+            "what_to_do_now": [
+                "**Step 1: Nitrogen Management**: Stop applying nitrogen fertilizer immediately. High nitrogen levels exacerbate the disease.",
+                "**Step 2: Water Management**: Maintain a continuous deep flood (water level) in the paddy, as the disease is worse in dry soil conditions.",
+                "**Step 3: Chemical Treatment**: Apply systemic fungicides such as Tricyclazole, Isoprothiolane, or Azoxystrobin immediately if the blast is at the booting or heading stage."
+            ],
+            "prevention": [
+                "**Resistant Varieties**: This is the most effective method. Use locally recommended resistant strains.",
+                "**Planting Time**: Adjust planting dates to avoid heading stages during periods of high humidity/rainfall.",
+                "**Seed Treatment**: Treat seeds with Pseudomonas fluorescens before sowing."
+            ],
+            "when_to_get_help": [
+                "If 'Neck Blast' is observed (lesions at the base of the panicle) as this leads to total grain failure.",
+                "If the field has a history of severe outbreaks."
+            ]
+        },
+        "maize": {
+            "primary": "MAIZE_RUST",
+            "secondary": ["MAIZE_NLB", "MAIZE_GREY_LEAF_SPOT"],
+            "confidence": 0.78,
+            "severity": 0.35,
+            "urgency": "low",
+            "title": "Common Rust (Puccinia sorghi)",
+            "summary": "Detected **Common Rust**, characterized by small, reddish-brown pustules on both upper and lower leaf surfaces. While spectacular in appearance, it often does not require chemical control unless the infection happens very early in the season.",
+            "what_to_do_now": [
+                "**Step 1: Field Monitoring**: Check if the pustules are covering more than 30-50% of the leaf surface. If less, the economic impact may be minimal.",
+                "**Step 2: Fungicide**: In sweet corn or seed corn (high value), apply foliar fungicides (Strobilurins or Triazoles) if pustules appear before tasseling.",
+                "**Step 3: Cultural**: Remove alternate hosts (Oxalis species weeds) from around the field."
+            ],
+            "prevention": [
+                "**Resistant Hybrids**: Plant resistant maize hybrids.",
+                "**Planting Date**: Early planting helps the crop mature before rust spore loads become high in the atmosphere.",
+                "**Crop Rotation**: Effective but less critical than for soil-borne diseases as rust blows in via wind."
+            ],
+            "when_to_get_help": [
+                "If pustules turn black (teliospore stage) and infection is severe on ear leaves.",
+                "If you suspect 'Southern Rust' (pustules only on top of leaves) which is more aggressive."
+            ]
+        },
+        "chili": {
+            "primary": "CHILI_ANTHRAC",
+            "secondary": ["CHILI_LEAF_CURL", "CHILI_WILT"],
+            "confidence": 0.81,
+            "severity": 0.55,
+            "urgency": "medium",
+            "title": "Anthracnose (Colletotrichum spp.)",
+            "summary": "The fruit/leaf lesions suggest **Anthracnose**. On fruits, it causes sunken, circular, excessively wet spots with concentric rings of salmon-colored spores. It makes the fruit unmarketable.",
+            "what_to_do_now": [
+                "**Step 1: Harvest & Destruction**: Pick ALL infected fruits immediately and bury them. They are the primary source of new infection.",
+                "**Step 2: Spraying**: Apply fungicides like Mancozeb, Copper Oxychloride, or Azoxystrobin. Ensure thorough coverage of the fruits, not just leaves.",
+                "**Step 3: Seed Treatment**: If saving seeds, treat them with hot water (52°C for 30 mins) or Thiram to kill seed-borne infection."
+            ],
+            "prevention": [
+                "**Wider Spacing**: Increase space between plants to ensure rapid drying after rain.",
+                "**Weed Control**: Keep the field weed-free as weeds can host the fungus.",
+                "**Drainage**: Ensure fields drain well to avoid high humidity microclimates."
+            ],
+            "when_to_get_help": [
+                "If 'Dieback' symptoms occur (branches drying from tip downwards)."
+            ]
+        },
+        "cucumber": {
+            "primary": "CUC_POWDERY",
+            "secondary": ["CUC_DOWNY", "CUC_MOSAIC"],
+            "confidence": 0.88,
+            "severity": 0.40,
+            "urgency": "medium",
+            "title": "Powdery Mildew (Podosphaera xanthii)",
+            "summary": "Identified **Powdery Mildew**, appearing as a white, dusty flour-like coating on leaves and stems. Unlike many fungi, it thrives in dry conditions with high humidity, even without rain.",
+            "what_to_do_now": [
+                "**Step 1: Bio-Control**: Spray a solution of Baking Soda (1%) or Potassium Bicarbonate. Milk solution (1 part milk : 9 parts water) is also effective.",
+                "**Step 2: Chemical Control**: If severe, use sulfur-based fungicides or Mycobutanil. Do not apply sulfur if temperatures are above 30°C (85°F) to avoid burn.",
+                "**Step 3: Pruning**: Remove lower leaves that are heavily coated to improve airflow."
+            ],
+            "prevention": [
+                "**Resistant Cultivars**: Use PM-resistant cucumber varieties.",
+                "**Air Circulation**: Trellis cucumbers to maximize airflow and light exposure.",
+                "**Weeding**: Remove wild cucurbits and weeds nearby."
+            ],
+            "when_to_get_help": [
+                "If you see yellow, angular spots bounded by leaf veins; this might be Downy Mildew instead, which requires different treatment."
+            ]
+        }
+    }
+    
+    # Get crop data or default
+    data = knowledge_base.get(crop.lower(), knowledge_base["tomato"])
+    
+    return {
+        "primary_label": data["primary"],
+        "secondary_labels": data["secondary"],
+        "confidence": data["confidence"],
+        "severity_score": data["severity"],
+        "urgency_level": data["urgency"],
+        "advice": {
+            "summary": data["summary"],
+            "what_to_do_now": data["what_to_do_now"],
+            "prevention": data["prevention"],
+            "when_to_get_help": data["when_to_get_help"],
+            "safety_note": "This diagnosis is generated by AgriDoctor AI. While highly accurate, environmental factors can mimic diseases. Please confirm with a local agronomist before applying chemical treatments."
         }
     }
 
