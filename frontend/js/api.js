@@ -3,7 +3,7 @@
  * Handles all API communication with the backend
  */
 
-const API_BASE = '/api';
+const API_BASE = 'http://localhost:8000/api';
 
 class APIClient {
     constructor() {
