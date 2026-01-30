@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="AgriDoctor AI - Intelligent crop disease diagnosis using AI. Get instant analysis and treatment recommendations.">
+    <meta name="theme-color" content="#10b981">
+    <title>AgriDoctor AI - Smart Crop Health Assistant</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay hidden">
+        <div class="loader">
+            <div class="plant-loader">🌱</div>
+            <p>Analyzing your crop...</p>
+        </div>
+    </div>
+
+    <!-- App Container -->
+    <div id="app" class="app-container">
+        
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🌿</span>
+                    <span class="logo-text">AgriDoctor<span class="ai-badge">AI</span></span>
+                </div>
+                <nav class="nav-menu" id="nav-menu">
+                    <a href="#" class="nav-link active" data-page="home">Home</a>
+                    <a href="#" class="nav-link" data-page="diagnose">Diagnose</a>
+                    <a href="#" class="nav-link" data-page="history">History</a>
+                </nav>
+                <div class="header-actions">
+                    <button id="auth-btn" class="btn btn-primary">
+                        <span class="btn-icon">👤</span>
+                        Login
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            
+            <!-- Home Page -->
+            <section id="page-home" class="page active">
+                <div class="hero">
+                    <div class="hero-content">
+                        <h1 class="hero-title">
+                            <span class="gradient-text">AI-Powered</span>
+                            Crop Health Diagnosis
+                        </h1>
+                        <p class="hero-subtitle">
+                            Instantly identify crop diseases from photos and voice descriptions. 
+                            Get actionable treatment advice powered by advanced machine learning.
+                        </p>
+                        <div class="hero-actions">
+                            <button class="btn btn-primary btn-lg" onclick="showPage('diagnose')">
+                                <span class="btn-icon">📷</span>
+                                Start Diagnosis
+                            </button>
+                            <button class="btn btn-secondary btn-lg" onclick="showPage('history')">
+                                <span class="btn-icon">📋</span>
+                                View History
+                            </button>
+                        </div>
+                        <div class="hero-stats">
+                            <div class="stat-item">
+                                <span class="stat-value">38+</span>
+                                <span class="stat-label">Diseases Detected</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">6</span>
+                                <span class="stat-label">Crop Types</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">&lt;2s</span>
+                                <span class="stat-label">Analysis Time</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="hero-visual">
+                        <div class="floating-card card-1">
+                            <span class="card-icon">🍅</span>
+                            <span class="card-label">Tomato</span>
+                        </div>
+                        <div class="floating-card card-2">
+                            <span class="card-icon">🥔</span>
+                            <span class="card-label">Potato</span>
+                        </div>
+                        <div class="floating-card card-3">
+                            <span class="card-icon">🌾</span>
+                            <span class="card-label">Rice</span>
+                        </div>
+                        <div class="floating-card card-4">
+                            <span class="card-icon">🌽</span>
+                            <span class="card-label">Maize</span>
+                        </div>
+                        <div class="floating-card card-5">
+                            <span class="card-icon">🌶️</span>
+                            <span class="card-label">Chili</span>
+                        </div>
+                        <div class="floating-card card-6">
+                            <span class="card-icon">🥒</span>
+                            <span class="card-label">Cucumber</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Features Section -->
+                <section class="features-section">
+                    <h2 class="section-title">How It Works</h2>
+                    <p class="section-subtitle">Simple 4-step process to diagnose and treat crop diseases</p>
+                    <div class="features-grid">
+                        <div class="feature-card">
+                            <div class="feature-icon">📸</div>
+                            <h3>Capture</h3>
+                            <p>Take a photo of the affected plant or upload an existing image from your gallery</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🎤</div>
+                            <h3>Describe</h3>
+                            <p>Add a voice note describing symptoms, duration, and growing conditions</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">🤖</div>
+                            <h3>Analyze</h3>
+                            <p>Our AI analyzes visual patterns and text to identify diseases accurately</p>
+                        </div>
+                        <div class="feature-card">
+                            <div class="feature-icon">💡</div>
+                            <h3>Advise</h3>
+                            <p>Get detailed treatment recommendations and prevention tips instantly</p>
+                        </div>
+                    </div>
+                </section>
+            </section>
+
+            <!-- Diagnose Page -->
+            <section id="page-diagnose" class="page">
+                <div class="diagnose-container">
+                    <div class="diagnose-header">
+                        <h1>New Diagnosis</h1>
+                        <p>Upload an image and describe symptoms to get AI-powered analysis</p>
+                    </div>
+
+                    <!-- Step Indicator -->
+                    <div class="step-indicator">
+                        <div class="step active" data-step="1">
+                            <span class="step-num">1</span>
+                            <span class="step-label">Crop</span>
+                        </div>
+                        <div class="step-connector"></div>
+                        <div class="step" data-step="2">
+                            <span class="step-num">2</span>
+                            <span class="step-label">Image</span>
+                        </div>
+                        <div class="step-connector"></div>
+                        <div class="step" data-step="3">
+                            <span class="step-num">3</span>
+                            <span class="step-label">Details</span>
+                        </div>
+                        <div class="step-connector"></div>
+                        <div class="step" data-step="4">
+                            <span class="step-num">4</span>
+                            <span class="step-label">Results</span>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Crop Selection -->
+                    <div class="diagnose-step" id="step-1">
+                        <h2>Select Your Crop</h2>
+                        <div class="crop-grid">
+                            <button class="crop-card" data-crop="tomato">
+                                <span class="crop-emoji">🍅</span>
+                                <span class="crop-name">Tomato</span>
+                            </button>
+                            <button class="crop-card" data-crop="potato">
+                                <span class="crop-emoji">🥔</span>
+                                <span class="crop-name">Potato</span>
+                            </button>
+                            <button class="crop-card" data-crop="rice">
+                                <span class="crop-emoji">🌾</span>
+                                <span class="crop-name">Rice</span>
+                            </button>
+                            <button class="crop-card" data-crop="maize">
+                                <span class="crop-emoji">🌽</span>
+                                <span class="crop-name">Maize</span>
+                            </button>
+                            <button class="crop-card" data-crop="chili">
+                                <span class="crop-emoji">🌶️</span>
+                                <span class="crop-name">Chili</span>
+                            </button>
+                            <button class="crop-card" data-crop="cucumber">
+                                <span class="crop-emoji">🥒</span>
+                                <span class="crop-name">Cucumber</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Image Upload -->
+                    <div class="diagnose-step hidden" id="step-2">
+                        <h2>Upload Crop Image</h2>
+                        <div class="upload-area" id="upload-area">
+                            <div class="upload-placeholder" id="upload-placeholder">
+                                <span class="upload-icon">📷</span>
+                                <p class="upload-text">Drag & drop an image or click to upload</p>
+                                <p class="upload-hint">Supports JPG, PNG, WebP • Max 10MB</p>
+                                <input type="file" id="image-input" accept="image/*" hidden>
+                            </div>
+                            <div class="image-preview hidden" id="image-preview">
+                                <img id="preview-img" src="" alt="Preview">
+                                <button class="remove-image" id="remove-image">✕</button>
+                            </div>
+                        </div>
+                        <div class="camera-option">
+                            <button class="btn btn-outline" id="camera-btn">
+                                <span class="btn-icon">📸</span>
+                                Use Camera Instead
+                            </button>
+                        </div>
+                        <div class="step-actions">
+                            <button class="btn btn-outline" onclick="prevStep()">← Back</button>
+                            <button class="btn btn-primary" id="next-step-2" disabled>Continue →</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Additional Details -->
+                    <div class="diagnose-step hidden" id="step-3">
+                        <h2>Add Details (Optional)</h2>
+                        
+                        <div class="details-form">
+                            <!-- Voice Recording -->
+                            <div class="form-group">
+                                <label>🎤 Voice Description</label>
+                                <p class="form-hint">Describe what you're seeing - symptoms, duration, recent weather</p>
+                                <div class="voice-recorder">
+                                    <button class="btn-voice" id="record-btn">
+                                        <span class="record-icon">🎙️</span>
+                                        <span class="record-text">Hold to Record</span>
+                                    </button>
+                                    <div class="recording-indicator hidden" id="recording-indicator">
+                                        <span class="pulse"></span>
+                                        Recording...
+                                    </div>
+                                    <audio id="audio-playback" controls class="hidden"></audio>
+                                </div>
+                            </div>
+
+                            <!-- Duration -->
+                            <div class="form-group">
+                                <label>⏱️ When did you first notice symptoms?</label>
+                                <select id="onset-days" class="form-select">
+                                    <option value="">Select duration...</option>
+                                    <option value="0">Today</option>
+                                    <option value="1">Yesterday</option>
+                                    <option value="3">2-3 days ago</option>
+                                    <option value="7">About a week ago</option>
+                                    <option value="14">2 weeks ago</option>
+                                    <option value="30">More than 2 weeks</option>
+                                </select>
+                            </div>
+
+                            <!-- Spread -->
+                            <div class="form-group">
+                                <label>📈 How fast is it spreading?</label>
+                                <div class="radio-group">
+                                    <label class="radio-card">
+                                        <input type="radio" name="spread" value="slow">
+                                        <span class="radio-label">🐢 Slow</span>
+                                    </label>
+                                    <label class="radio-card">
+                                        <input type="radio" name="spread" value="moderate">
+                                        <span class="radio-label">🚶 Moderate</span>
+                                    </label>
+                                    <label class="radio-card">
+                                        <input type="radio" name="spread" value="fast">
+                                        <span class="radio-label">🚀 Fast</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Notes -->
+                            <div class="form-group">
+                                <label>📝 Additional Notes</label>
+                                <textarea id="notes" class="form-textarea" 
+                                    placeholder="Weather conditions, treatments tried, nearby affected plants..."></textarea>
+                            </div>
+                        </div>
+
+                        <div class="step-actions">
+                            <button class="btn btn-outline" onclick="prevStep()">← Back</button>
+                            <button class="btn btn-primary" id="analyze-btn">
+                                <span class="btn-icon">🔍</span>
+                                Analyze Now
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Results -->
+                    <div class="diagnose-step hidden" id="step-4">
+                        <div class="results-container" id="results-container">
+                            <!-- Results will be populated by JavaScript -->
+                        </div>
+                        <div class="step-actions">
+                            <button class="btn btn-primary" onclick="startNewDiagnosis()">
+                                <span class="btn-icon">🔄</span>
+                                New Diagnosis
+                            </button>
+                            <button class="btn btn-outline" onclick="showPage('history')">
+                                <span class="btn-icon">📋</span>
+                                View All History
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- History Page -->
+            <section id="page-history" class="page">
+                <div class="history-container">
+                    <div class="history-header">
+                        <h1>Diagnosis History</h1>
+                        <p>View your past diagnoses and track plant health over time</p>
+                    </div>
+                    <div class="history-list" id="history-list">
+                        <!-- Will be populated by JavaScript -->
+                        <div class="empty-state">
+                            <span class="empty-icon">📋</span>
+                            <h3>No diagnoses yet</h3>
+                            <p>Start your first diagnosis to see it here</p>
+                            <button class="btn btn-primary" onclick="showPage('diagnose')">
+                                <span class="btn-icon">🌱</span>
+                                Start First Diagnosis
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo-icon">🌿</span>
+                    AgriDoctor AI
+                </div>
+                <p class="footer-disclaimer">
+                    ⚠️ This is AI-generated guidance, not professional agricultural diagnosis. 
+                    Always consult local agricultural experts for confirmation before applying treatments.
+                </p>
+                <p class="footer-copyright">© 2024 AgriDoctor AI. Built with 💚 for farmers.</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="auth-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeAuthModal()"></div>
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeAuthModal()">✕</button>
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="register">Register</button>
+            </div>
+            
+            <form id="login-form" class="auth-form">
+                <div class="form-group">
+                    <label>📧 Email</label>
+                    <input type="email" id="login-email" class="form-input" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>🔒 Password</label>
+                    <input type="password" id="login-password" class="form-input" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full btn-lg">Login</button>
+            </form>
+            
+            <form id="register-form" class="auth-form hidden">
+                <div class="form-group">
+                    <label>📧 Email</label>
+                    <input type="email" id="register-email" class="form-input" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>🔒 Password</label>
+                    <input type="password" id="register-password" class="form-input" placeholder="Min 6 characters" minlength="6" required>
+                </div>
+                <div class="form-group">
+                    <label>🔒 Confirm Password</label>
+                    <input type="password" id="register-confirm" class="form-input" placeholder="••••••••" required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-full btn-lg">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Image Viewer Modal -->
+    <div id="image-viewer-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeImageModal()"></div>
+        <div class="modal-content image-modal-content">
+            <button class="modal-close" onclick="closeImageModal()">✕</button>
+            <img id="full-image" src="" alt="Full size" class="full-size-image">
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div id="camera-modal" class="modal hidden">
+        <div class="modal-backdrop" onclick="closeCameraModal()"></div>
+        <div class="modal-content camera-modal-content">
+            <button class="modal-close" onclick="closeCameraModal()">✕</button>
+            <h3>📷 Take Photo</h3>
+            <video id="camera-video" autoplay playsinline></video>
+            <canvas id="camera-canvas" hidden></canvas>
+            <div class="camera-actions">
+                <button class="btn btn-primary btn-lg" id="capture-btn">
+                    <span class="btn-icon">📸</span>
+                    Capture Photo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
