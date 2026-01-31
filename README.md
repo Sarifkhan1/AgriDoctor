@@ -23,7 +23,7 @@
 
 ## 🎥 Project Video Recording
 
-📺 **[Link to the Project Video Recording]** _(Add your video link here)_
+📺 **https://youtu.be/SOlaeAC4mLw**
 
 ---
 
