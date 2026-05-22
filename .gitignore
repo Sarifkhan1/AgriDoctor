@@ -1,0 +1,37 @@
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+venv/
+env/
+.venv/
+
+# Logs
+*.log
+*.log.*
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# OS files
+.DS_Store
+Thumbs.db
+.ipynb_checkpoints/
+
+# Local uploads and data
+data/uploads/
+uploads/
+backend/uploads/
+frontend/uploads/
+node_modules/
+dist/
+build/

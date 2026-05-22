@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgriDoctor Encounter Schema",
+  "description": "Schema for multimodal encounter records linking images, audio, and text",
+  "type": "object",
+  "required": ["encounter_id", "created_at", "category", "media"],
+  "properties": {
+    "encounter_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for the encounter"
+    },
+    "farmer_id": {
+      "type": "string",
+      "description": "Anonymized farmer identifier for train/val split"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "category": {
+      "type": "string",
+      "enum": ["crop", "livestock"]
+    },
+    "crop_info": {
+      "type": "object",
+      "properties": {
+        "crop_name": { "type": "string" },
+        "variety": { "type": "string" },
+        "age_days": { "type": "integer" },
+        "growth_stage": { "type": "string" }
+      }
+    },
+    "location": {
+      "type": "object",
+      "description": "Coarse location only for privacy",
+      "properties": {
+        "region": { "type": "string" },
+        "country": { "type": "string" },
+        "climate_zone": { "type": "string" }
+      }
+    },
+    "weather": {
+      "type": "object",
+      "properties": {
+        "temperature_c": { "type": "number" },
+        "humidity_pct": { "type": "number" },
+        "rain_last_7d": { "type": "boolean" },
+        "weather_notes": { "type": "string" }
+      }
+    },
+    "symptoms": {
+      "type": "object",
+      "properties": {
+        "onset_days": { "type": "integer" },
+        "spread_speed": {
+          "type": "string",
+          "enum": ["slow", "moderate", "fast"]
+        },
+        "affected_parts": { "type": "array", "items": { "type": "string" } },
+        "treatments_tried": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "media": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["media_id", "type", "uri"],
+        "properties": {
+          "media_id": { "type": "string", "format": "uuid" },
+          "type": { "type": "string", "enum": ["image", "speech", "audio"] },
+          "uri": { "type": "string" },
+          "content_type": { "type": "string" },
+          "duration_sec": { "type": "number" },
+          "quality_score": { "type": "number", "minimum": 0, "maximum": 1 },
+          "capture_angle": { "type": "string" },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "transcripts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "media_id": { "type": "string" },
+          "language": { "type": "string" },
+          "text": { "type": "string" },
+          "confidence": { "type": "number" },
+          "segments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "start_sec": { "type": "number" },
+                "end_sec": { "type": "number" },
+                "text": { "type": "string" },
+                "confidence": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "labels": {
+      "type": "object",
+      "properties": {
+        "primary_label": { "type": "string" },
+        "secondary_labels": { "type": "array", "items": { "type": "string" } },
+        "severity_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "quality_score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "labeler_id": { "type": "string" },
+        "labeled_at": { "type": "string", "format": "date-time" },
+        "qa_verified": { "type": "boolean" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

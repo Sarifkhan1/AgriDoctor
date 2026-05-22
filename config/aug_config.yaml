@@ -1,0 +1,129 @@
+# AgriDoctor AI - Image Augmentation Configuration
+
+# Global settings
+seed: 42
+deterministic: true
+cache_dir: "../data/cache/tensors"
+
+# Image preprocessing
+preprocessing:
+  target_size: [224, 224]
+  normalize:
+    mean: [0.485, 0.456, 0.406] # ImageNet defaults
+    std: [0.229, 0.224, 0.225]
+  blur_detection:
+    enabled: true
+    laplacian_threshold: 100
+  color_constancy:
+    enabled: true
+    method: "gray_world" # Options: gray_world, white_patch, max_rgb
+
+# Training augmentations
+train_augmentations:
+  # Geometric transforms
+  horizontal_flip:
+    enabled: true
+    p: 0.5
+
+  vertical_flip:
+    enabled: true
+    p: 0.3
+
+  rotation:
+    enabled: true
+    degrees: [-30, 30]
+    p: 0.5
+
+  random_crop:
+    enabled: true
+    scale: [0.8, 1.0]
+    ratio: [0.9, 1.1]
+    p: 0.4
+
+  affine:
+    enabled: true
+    translate: [0.1, 0.1]
+    scale: [0.9, 1.1]
+    shear: [-10, 10]
+    p: 0.3
+
+  # Color transforms
+  color_jitter:
+    enabled: true
+    brightness: 0.2
+    contrast: 0.2
+    saturation: 0.2
+    hue: 0.1
+    p: 0.5
+
+  random_grayscale:
+    enabled: false
+    p: 0.1
+
+  gaussian_blur:
+    enabled: true
+    kernel_size: [3, 7]
+    sigma: [0.1, 2.0]
+    p: 0.2
+
+  # Noise and occlusion
+  gaussian_noise:
+    enabled: true
+    mean: 0
+    std: [0.01, 0.05]
+    p: 0.2
+
+  random_erasing:
+    enabled: true
+    scale: [0.02, 0.15]
+    ratio: [0.3, 3.3]
+    p: 0.2
+
+  coarse_dropout:
+    enabled: true
+    max_holes: 8
+    max_height: 16
+    max_width: 16
+    p: 0.2
+
+# Validation augmentations (minimal)
+val_augmentations:
+  center_crop:
+    enabled: true
+    size: [224, 224]
+
+# Test-time augmentations (TTA)
+tta_augmentations:
+  horizontal_flip: true
+  rotations: [0, 90, 180, 270]
+  scales: [0.9, 1.0, 1.1]
+
+# Disease-specific augmentations
+disease_specific:
+  # More aggressive for rare classes
+  rare_class_oversample: 3
+
+  # Lesion-focused augmentations
+  lesion_zoom:
+    enabled: true
+    zoom_range: [1.5, 2.5]
+    p: 0.3
+
+  # Simulate field conditions
+  field_artifacts:
+    shadow_overlay:
+      enabled: true
+      p: 0.2
+    soil_occlusion:
+      enabled: true
+      p: 0.15
+    dew_effect:
+      enabled: true
+      p: 0.1
+
+# GAN/Diffusion synthetic augmentation mixing
+synthetic_mixing:
+  enabled: false # Enable after training GAN/Diffusion
+  gan_ratio: 0.1 # 10% of rare class batch from GAN
+  diffusion_ratio: 0.1 # 10% from diffusion
+  min_class_samples: 50 # Only augment classes with < this many samples

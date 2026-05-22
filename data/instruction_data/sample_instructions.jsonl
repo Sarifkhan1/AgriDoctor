@@ -1,0 +1,44 @@
+{
+  "system": "You are AgriDoctor AI. Provide safe, practical farming guidance. Never give dangerous chemical instructions. Encourage experts for severe cases.",
+  "input": {
+    "crop_name": "tomato",
+    "primary_diagnosis": "early_blight",
+    "confidence": 0.82,
+    "severity_score": 0.35,
+    "onset_days": 3,
+    "weather": {
+      "humidity": 78,
+      "rain_last_7d": true
+    },
+    "treatments_taken": ["neem_oil"],
+    "evidence": {
+      "image_findings": ["brown_spots_with_concentric_rings", "lower_leaves_more_affected"],
+      "transcript_key_spans": ["spots started 3 days ago", "spreading fast"]
+    },
+    "constraints": {
+      "no_prescription_claims": true,
+      "no_illegal_chemicals": true,
+      "must_include_escalation": true
+    }
+  },
+  "output": {
+    "summary": "Your tomato plant likely has Early Blight (moderate).",
+    "what_to_do_now": [
+      "Remove the most affected lower leaves and dispose away from the farm area.",
+      "Avoid watering from above; water near the soil to keep leaves dry.",
+      "Improve airflow by spacing plants and removing dense foliage."
+    ],
+    "prevention": [
+      "Rotate crops next season (avoid planting tomato in the same spot).",
+      "Clean tools after use and remove fallen leaves."
+    ],
+    "when_to_get_help": [
+      "If more than half the plant becomes affected within 3–5 days, consult an agriculture expert."
+    ],
+    "safety_note": "This is guidance, not a professional diagnosis. Follow local regulations for any treatments."
+  }
+}
+{"system": "You are AgriDoctor AI. Provide safe, practical farming guidance. Never give dangerous chemical instructions. Encourage experts for severe cases.", "input": {"crop_name": "potato", "primary_diagnosis": "late_blight", "confidence": 0.91, "severity_score": 0.68, "onset_days": 5, "weather": {"humidity": 85, "rain_last_7d": true, "temperature_c": 18}, "treatments_taken": [], "evidence": {"image_findings": ["water_soaked_lesions", "white_fuzzy_growth_underside", "rapid_browning"], "transcript_key_spans": ["spread very quickly", "whole row affected"]}, "constraints": {"no_prescription_claims": true, "no_illegal_chemicals": true, "must_include_escalation": true}}, "output": {"summary": "Your potato plants likely have Late Blight (severe) - this is a serious condition that spreads rapidly.", "what_to_do_now": ["Act immediately - remove and destroy all heavily affected plants by burning or burying deep.", "Do NOT compost infected material.", "Harvest any unaffected tubers soon if plants are mature.", "Avoid working in fields when plants are wet."], "prevention": ["In future, use certified disease-free seed potatoes.", "Plant resistant varieties if available in your area.", "Ensure good drainage and air circulation."], "when_to_get_help": ["Contact your local agricultural extension office immediately - Late Blight can devastate entire fields within days.", "This is an urgent situation requiring professional guidance."], "safety_note": "This is guidance, not a professional diagnosis. Late Blight is a notifiable disease in some regions. Contact local agriculture authorities."}}
+{"system": "You are AgriDoctor AI. Provide safe, practical farming guidance. Never give dangerous chemical instructions. Encourage experts for severe cases.", "input": {"crop_name": "rice", "primary_diagnosis": "bacterial_leaf_blight", "confidence": 0.76, "severity_score": 0.42, "onset_days": 7, "weather": {"humidity": 82, "rain_last_7d": true}, "treatments_taken": ["increased_spacing"], "evidence": {"image_findings": ["yellow_streaks_on_leaves", "wavy_margins", "leaf_tips_drying"], "transcript_key_spans": ["yellow lines appeared", "tips turning white"]}, "constraints": {"no_prescription_claims": true, "no_illegal_chemicals": true, "must_include_escalation": true}}, "output": {"summary": "Your rice crop likely has Bacterial Leaf Blight (moderate severity).", "what_to_do_now": ["Avoid excess nitrogen fertilizer which can worsen the disease.", "Drain the field if water is stagnant to reduce humidity.", "Remove and destroy severely infected plants if practical."], "prevention": ["Use resistant varieties in next season if available.", "Avoid injuring plants during field operations.", "Balance nitrogen with potassium fertilization."], "when_to_get_help": ["If the disease spreads to more than 30% of plants, seek advice from agricultural extension.", "Consider disease testing to confirm diagnosis."], "safety_note": "This is guidance, not a professional diagnosis. Follow recommended practices for your region."}}
+{"system": "You are AgriDoctor AI. Provide safe, practical farming guidance. Never give dangerous chemical instructions. Encourage experts for severe cases.", "input": {"crop_name": "chili", "primary_diagnosis": "healthy", "confidence": 0.94, "severity_score": 0.0, "onset_days": 0, "weather": {"humidity": 65, "rain_last_7d": false}, "treatments_taken": [], "evidence": {"image_findings": ["green_uniform_leaves", "no_visible_lesions", "healthy_growth"], "transcript_key_spans": ["plants look normal", "just checking"]}, "constraints": {"no_prescription_claims": true, "no_illegal_chemicals": true, "must_include_escalation": false}}, "output": {"summary": "Good news! Your chili plants appear healthy with no visible disease symptoms.", "what_to_do_now": ["Continue your current care routine.", "Monitor plants weekly for any changes.", "Ensure consistent watering without waterlogging."], "prevention": ["Maintain good air circulation between plants.", "Remove any fallen debris from around plants.", "Watch for pests like aphids and thrips."], "when_to_get_help": ["Return if you notice any spots, wilting, or unusual leaf changes."], "safety_note": "Regular monitoring helps catch problems early. Keep up the good work!"}}
+{"system": "You are AgriDoctor AI. Provide safe, practical farming guidance. Never give dangerous chemical instructions. Encourage experts for severe cases.", "input": {"crop_name": "cucumber", "primary_diagnosis": "powdery_mildew", "confidence": 0.88, "severity_score": 0.52, "onset_days": 10, "weather": {"humidity": 70, "rain_last_7d": false, "temperature_c": 24}, "treatments_taken": ["baking_soda_spray"], "evidence": {"image_findings": ["white_powdery_coating", "upper_leaf_surface_affected", "older_leaves_more_severe"], "transcript_key_spans": ["white powder on leaves", "tried baking soda"]}, "constraints": {"no_prescription_claims": true, "no_illegal_chemicals": true, "must_include_escalation": true}}, "output": {"summary": "Your cucumber plants have Powdery Mildew (moderate severity).", "what_to_do_now": ["Continue the baking soda spray treatment - apply weekly.", "Remove the most severely affected leaves to slow spread.", "Water at the base of plants, avoid wetting leaves.", "Improve air circulation by pruning dense growth."], "prevention": ["Choose resistant varieties for next planting.", "Space plants adequately for airflow.", "Avoid overhead irrigation."], "when_to_get_help": ["If more than half the plant canopy is affected despite treatment, consult a local expert.", "Consider if organic fungicides approved for your area might help."], "safety_note": "This is guidance, not a professional diagnosis. Baking soda solutions are generally safe but test on a few leaves first."}}
