@@ -550,19 +550,38 @@ curl -X POST "http://localhost:8000/api/cases" \
 
 ## 🧠 Model Training
 
-### Image Classifier Training
+### 1. Kaggle Dataset Downloader
+We have added a utility script to automate downloading and mapping external plant disease datasets (PlantVillage & Rice Leaf Diseases) into standard disease labels.
 
+Make sure you have your Kaggle API credentials set up at `~/.kaggle/kaggle.json`. Then, run:
+```bash
+# Download and organize both datasets automatically
+python scripts/download_kaggle_data.py
+```
+This organizes the images under `data/dataset/train` and `data/dataset/val` mapped into unified folders and generates `data/dataset/labels.csv`.
+
+### 2. Local CNN Model Training
+To train the CNN model (ViT or Swin backbone) locally with advanced data augmentations and early stopping, run:
+```bash
+# Quick run with one convenience script
+chmod +x scripts/train_cnn.sh
+./scripts/train_cnn.sh
+```
+Or run the python script directly:
 ```bash
 python src/models/train_image_model.py train \
-    --labels data/labels.csv \
-    --images data/images \
+    --labels data/dataset/labels.csv \
+    --images data/dataset \
     --backbone vit_b_16 \
-    --epochs 50 \
+    --epochs 15 \
     --batch-size 32 \
-    --learning-rate 0.0001
+    --learning-rate 0.0001 \
+    --early-stop 5 \
+    --use-folders
 ```
+This saves the trained PyTorch checkpoint `best_model.pt` and a scripted TorchScript version `best_model_scripted.pt` under `data/models/`.
 
-### Multimodal Fusion Training
+### 3. Multimodal Fusion Training
 
 ```bash
 python src/models/train_multimodal.py \
@@ -573,7 +592,7 @@ python src/models/train_multimodal.py \
     --batch-size 16
 ```
 
-### Data Annotation Tool
+### 4. Data Annotation Tool
 
 ```bash
 # Run the Streamlit annotation tool
@@ -594,7 +613,7 @@ _(Add screenshots of your application here)_
 | Login Page        | _(Add screenshot)_ |
 | Dashboard         | _(Add screenshot)_ |
 | Image Upload      | _(Add screenshot)_ |
-| Diagnosis Results | _(Add screenshot)_ |
+| Diagnosis Results (Hybrid Badge) | _(Add screenshot)_ |
 | Treatment Advice  | _(Add screenshot)_ |
 
 ---
@@ -603,13 +622,21 @@ _(Add screenshots of your application here)_
 
 ### Environment Variables
 
-| Variable        | Default                     | Description                                           |
-| --------------- | --------------------------- | ----------------------------------------------------- |
-| `SECRET_KEY`    | `dev-key`                   | JWT signing secret key                                |
-| `WHISPER_MODEL` | `base`                      | Whisper model size (tiny, base, small, medium, large) |
-| `LOG_LEVEL`     | `INFO`                      | Logging level                                         |
-| `UPLOAD_DIR`    | `./uploads`                 | Directory for uploaded files                          |
-| `DATABASE_URL`  | `sqlite:///./agridoctor.db` | Database connection URL                               |
+| Variable | Default | Description |
+| --- | --- | --- |
+| `SECRET_KEY` | *(Required)* | JWT signing secret key |
+| `GROQ_API_KEY` | *(Required)* | Groq API Key |
+| `GROQ_VISION_MODEL` | `meta-llama/llama-4-scout-17b-16e-instruct` | Groq Vision model |
+| `GROQ_AUDIO_MODEL` | `whisper-large-v3-turbo` | Groq ASR Audio model |
+| `GROQ_TEXT_MODEL` | `llama-3.3-70b-versatile` | Groq text model for advice |
+| `AI_TIMEOUT_SECONDS` | `30` | Network request timeout for AI calls |
+| `AI_MAX_RETRIES` | `2` | Number of retries for Groq API calls |
+| `USE_LOCAL_CNN` | `True` | Toggle local CNN image classification engine |
+| `CNN_MODEL_PATH` | `data/models/best_model.pt` | Path to trained CNN weights |
+| `CNN_CONFIDENCE_THRESHOLD` | `0.80` | Confidence threshold to bypass cloud vision call |
+| `LOG_LEVEL` | `INFO` | Logging level |
+| `UPLOAD_DIR` | `./uploads` | Directory for uploaded files |
+| `DATABASE_URL` | `sqlite:///./agridoctor.db` | Database connection URL |
 
 ### Creating a `.env` File
 
@@ -617,7 +644,12 @@ _(Add screenshots of your application here)_
 # Create .env file in the project root
 cat > .env << EOF
 SECRET_KEY=your-super-secret-key-here
-WHISPER_MODEL=base
+GROQ_API_KEY=your-groq-api-key
+GROQ_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
+GROQ_AUDIO_MODEL=whisper-large-v3-turbo
+USE_LOCAL_CNN=True
+CNN_MODEL_PATH=data/models/best_model.pt
+CNN_CONFIDENCE_THRESHOLD=0.80
 LOG_LEVEL=INFO
 EOF
 ```
