@@ -16,6 +16,9 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/styles.css" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link
       rel="icon"
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>"
@@ -208,6 +211,10 @@
             <!-- Step 1: Crop Selection -->
             <div class="diagnose-step" id="step-1">
               <h2>Select Your Crop</h2>
+              <p class="step-hint">
+                Pick your crop, or skip it — the AI detects the crop from the
+                photo and will tell you if it isn't one we support.
+              </p>
               <div class="crop-grid">
                 <button class="crop-card" data-crop="tomato">
                   <span class="crop-emoji">🍅</span>
@@ -232,6 +239,11 @@
                 <button class="crop-card" data-crop="cucumber">
                   <span class="crop-emoji">🥒</span>
                   <span class="crop-name">Cucumber</span>
+                </button>
+              </div>
+              <div class="step-actions step-actions--center">
+                <button class="btn btn-outline" id="skip-crop">
+                  ✨ Skip — auto-detect the crop
                 </button>
               </div>
             </div>
@@ -411,6 +423,22 @@
           </p>
         </div>
       </footer>
+
+      <!-- Mobile app-style bottom navigation -->
+      <nav class="bottom-nav" aria-label="Primary">
+        <button class="bottom-nav__item active" data-page="home">
+          <span class="bottom-nav__icon">🏠</span>
+          <span class="bottom-nav__label">Home</span>
+        </button>
+        <button class="bottom-nav__item bottom-nav__cta" data-page="diagnose">
+          <span class="bottom-nav__icon">📷</span>
+          <span class="bottom-nav__label">Diagnose</span>
+        </button>
+        <button class="bottom-nav__item" data-page="history">
+          <span class="bottom-nav__icon">📋</span>
+          <span class="bottom-nav__label">History</span>
+        </button>
+      </nav>
     </div>
 
     <!-- Auth Modal -->
@@ -525,6 +553,7 @@
     </div>
 
     <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
   </body>
 </html>

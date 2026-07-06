@@ -19,9 +19,12 @@ services:
     ports:
       - "8002:8000" # Mapped to alternative port 8002 to avoid conflicts
     environment:
-      - SECRET_KEY=${SECRET_KEY:-64X1i7jkQg1@RO--y)L7}
-      - DATABASE_URL=sqlite:///./data/agridoctor.db
-      - WHISPER_MODEL=base
+      # Required — no insecure defaults. Provide via host env or a .env file.
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - GROQ_API_KEY=${GROQ_API_KEY:?GROQ_API_KEY is required}
+      - GROQ_VISION_MODEL=${GROQ_VISION_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      - GROQ_AUDIO_MODEL=${GROQ_AUDIO_MODEL:-whisper-large-v3-turbo}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8020}
       - LOG_LEVEL=INFO
     volumes:
       - ./data:/app/data
@@ -59,6 +62,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        REQUIREMENTS: requirements-ml.txt
     container_name: agridoctor-annotator
     restart: unless-stopped
     command: streamlit run tools/annotator_app.py --server.port 8501 --server.address 0.0.0.0

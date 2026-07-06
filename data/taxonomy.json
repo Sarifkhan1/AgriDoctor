@@ -1,0 +1,62 @@
+{
+  "tomato": [
+    {"label_id": "TOM_EARLY_BLIGHT", "disease_name": "Early Blight", "category": "fungal", "description": "Brown spots with concentric rings on lower leaves"},
+    {"label_id": "TOM_LATE_BLIGHT", "disease_name": "Late Blight", "category": "fungal", "description": "Water-soaked lesions, white mold on underside"},
+    {"label_id": "TOM_LEAF_MOLD", "disease_name": "Leaf Mold", "category": "fungal", "description": "Yellow spots on upper leaves, olive-green mold below"},
+    {"label_id": "TOM_SEPTORIA", "disease_name": "Septoria Leaf Spot", "category": "fungal", "description": "Small dark spots with gray centers"},
+    {"label_id": "TOM_SPIDER_MITES", "disease_name": "Spider Mites", "category": "pest", "description": "Fine webbing, yellow stippling on leaves"},
+    {"label_id": "TOM_MOSAIC", "disease_name": "Mosaic Virus", "category": "viral", "description": "Mottled yellow-green pattern, distorted leaves"},
+    {"label_id": "TOM_BACL_SPOT", "disease_name": "Bacterial Spot", "category": "bacterial", "description": "Small, dark, water-soaked spots on leaves/fruit"},
+    {"label_id": "TOM_BLOSSOM_ROT", "disease_name": "Blossom End Rot", "category": "nutrient", "description": "Calcium deficiency, dark sunken fruit bottom"},
+    {"label_id": "TOM_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
+    {"label_id": "TOM_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ],
+  "potato": [
+    {"label_id": "POT_EARLY_BLIGHT", "disease_name": "Early Blight", "category": "fungal", "description": "Target-shaped brown lesions on leaves"},
+    {"label_id": "POT_LATE_BLIGHT", "disease_name": "Late Blight", "category": "fungal", "description": "Dark water-soaked lesions, rapid spread"},
+    {"label_id": "POT_BLACKLEG", "disease_name": "Blackleg", "category": "bacterial", "description": "Black slimy stem base, wilting"},
+    {"label_id": "POT_SCAB", "disease_name": "Common Scab", "category": "bacterial", "description": "Rough, corky patches on tubers"},
+    {"label_id": "POT_VIRAL", "disease_name": "Viral Mosaic", "category": "viral", "description": "Mottled leaves, stunted growth"},
+    {"label_id": "POT_APHIDS", "disease_name": "Aphid Damage", "category": "pest", "description": "Curled leaves, honeydew presence"},
+    {"label_id": "POT_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
+    {"label_id": "POT_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ],
+  "rice": [
+    {"label_id": "RICE_BLAST", "disease_name": "Rice Blast", "category": "fungal", "description": "Diamond-shaped lesions with gray centers"},
+    {"label_id": "RICE_BROWN_SPOT", "disease_name": "Brown Spot", "category": "fungal", "description": "Oval brown spots with gray center"},
+    {"label_id": "RICE_BACT_BLIGHT", "disease_name": "Bacterial Leaf Blight", "category": "bacterial", "description": "Water-soaked streaks turning yellow then white"},
+    {"label_id": "RICE_TUNGRO", "disease_name": "Tungro Virus", "category": "viral", "description": "Yellow-orange discoloration, stunting"},
+    {"label_id": "RICE_SHEATH_BLIGHT", "disease_name": "Sheath Blight", "category": "fungal", "description": "Irregular gray-green water-soaked lesions"},
+    {"label_id": "RICE_STEMB", "disease_name": "Stem Borer", "category": "pest", "description": "Dead hearts, white heads"},
+    {"label_id": "RICE_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
+    {"label_id": "RICE_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ],
+  "maize": [
+    {"label_id": "MAIZE_NLB", "disease_name": "Northern Leaf Blight", "category": "fungal", "description": "Long elliptical gray-green lesions"},
+    {"label_id": "MAIZE_RUST", "disease_name": "Common Rust", "category": "fungal", "description": "Reddish-brown pustules on leaves"},
+    {"label_id": "MAIZE_GLS", "disease_name": "Gray Leaf Spot", "category": "fungal", "description": "Rectangular gray lesions between veins"},
+    {"label_id": "MAIZE_SMUT", "disease_name": "Common Smut", "category": "fungal", "description": "Large gray galls on ears/stalks"},
+    {"label_id": "MAIZE_BORER", "disease_name": "Stem Borer", "category": "pest", "description": "Holes in stalks, frass, lodging"},
+    {"label_id": "MAIZE_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
+    {"label_id": "MAIZE_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ],
+  "chili": [
+    {"label_id": "CHILI_ANTHRAC", "disease_name": "Anthracnose", "category": "fungal", "description": "Dark sunken spots on fruits with pink spores"},
+    {"label_id": "CHILI_BACT_WILT", "disease_name": "Bacterial Wilt", "category": "bacterial", "description": "Sudden wilting, vascular browning"},
+    {"label_id": "CHILI_LEAF_CURL", "disease_name": "Leaf Curl Virus", "category": "viral", "description": "Leaf curling, puckering, stunted growth"},
+    {"label_id": "CHILI_POWDERY", "disease_name": "Powdery Mildew", "category": "fungal", "description": "White powdery coating on leaves"},
+    {"label_id": "CHILI_THRIPS", "disease_name": "Thrips Damage", "category": "pest", "description": "Silvery streaks, distorted leaves"},
+    {"label_id": "CHILI_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
+    {"label_id": "CHILI_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ],
+  "cucumber": [
+    {"label_id": "CUC_POWDERY", "disease_name": "Powdery Mildew", "category": "fungal", "description": "White powdery patches on leaves"},
+    {"label_id": "CUC_DOWNY", "disease_name": "Downy Mildew", "category": "fungal", "description": "Angular yellow spots, purple mold underneath"},
+    {"label_id": "CUC_ANGULAR", "disease_name": "Angular Leaf Spot", "category": "bacterial", "description": "Angular water-soaked spots, turn tan"},
+    {"label_id": "CUC_MOSAIC", "disease_name": "Cucumber Mosaic Virus", "category": "viral", "description": "Mottled leaves, distorted fruit"},
+    {"label_id": "CUC_ANTHRAC", "disease_name": "Anthracnose", "category": "fungal", "description": "Circular tan spots with dark margins"},
+    {"label_id": "CUC_APHIDS", "disease_name": "Aphid Damage", "category": "pest", "description": "Curled leaves, sooty mold"},
+    {"label_id": "CUC_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
+    {"label_id": "CUC_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ]
+}

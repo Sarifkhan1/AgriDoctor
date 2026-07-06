@@ -2,11 +2,51 @@
 
 > **An AI-Powered Multimodal Agricultural Health Assistant for Diagnosing Crop Diseases and Livestock Health Issues**
 
-![Version](https://img.shields.io/badge/version-1.0.0-green)
+![Version](https://img.shields.io/badge/version-2.0.0-green)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.1+-ee4c2c)
+![AI](https://img.shields.io/badge/AI-Groq%20Llama%204%20Scout-orange)
+
+---
+
+## ⚡ v2.0 — Real AI diagnosis (Quick Start)
+
+AgriDoctor now performs **genuine image-based diagnosis** with an open-source
+vision-language model on **Groq** (Llama 4 Scout for vision, Whisper for voice).
+It looks at the actual leaf pixels, identifies the crop, **rejects photos that
+aren't one of the 6 supported crops** (or aren't a leaf), fuses in the farmer's
+voice/text, and returns detailed, instant treatment advice.
+
+> The full engineering plan lives in **[`docs/implementation/`](docs/implementation/)**.
+
+```bash
+# 1. Configure secrets (never commit .env)
+cp .env.example .env
+python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(48))" >> .env
+#   then add your free Groq key from https://console.groq.com  ->  GROQ_API_KEY=...
+
+# 2. Install + run the API
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn backend.main:app --reload --port 8000
+
+# 3. Serve the frontend (separate terminal)
+cd frontend && python3 -m http.server 3000
+#   open http://localhost:3000
+
+# 4. Run the tests (no network / no API key needed — uses a fake provider)
+pytest
+```
+
+**Key endpoint:** `POST /api/analyze` (multipart: `image`, optional `audio`,
+`crop_hint`, `onset_days`, `spread`, `notes`) → returns the full diagnosis in one
+call. Result `kind` is one of: `diagnosis`, `healthy`, `unsupported_crop`,
+`not_a_leaf`, `low_confidence`.
+
+> **Heavy ML libs** (torch/whisper/opencv) are only needed for the offline
+> training code in `src/` — install those with `pip install -r requirements-ml.txt`.
+> The serving API does not need them.
 
 ---
 

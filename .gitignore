@@ -1,37 +1,44 @@
-# Environment variables
+# ---- Secrets / environment ----
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+credentials.json
 
-# Python
+# ---- Data & artifacts (contain PII / large binaries) ----
+data/agridoctor.db
+data/agridoctor.db-*
+data/uploads/
+data/cache/
+data/dataset/
+data/raw_kaggle/
+data/models/
+models/
+outputs/
+*.pt
+*.ptl
+*.log
+
+# ---- Python ----
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.pytest_cache
+*.py[cod]
+*.egg-info/
+.venv/
 venv/
 env/
-.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
-# Logs
-*.log
-*.log.*
+# ---- Node (if tooling is added later) ----
+node_modules/
 
-# Databases
-*.db
-*.sqlite
-*.sqlite3
-
-# OS files
+# ---- OS / editor ----
 .DS_Store
 Thumbs.db
-.ipynb_checkpoints/
-
-# Local uploads and data
-data/uploads/
-uploads/
-backend/uploads/
-frontend/uploads/
-node_modules/
-dist/
-build/
+.idea/
+.vscode/
+*.swp

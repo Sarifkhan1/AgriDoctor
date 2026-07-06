@@ -148,7 +148,33 @@ class APIClient {
     }
 
     // ========================================================================
-    // Inference
+    // Instant Analysis (the real AI path)
+    // ========================================================================
+
+    async analyze({ image, audio, cropHint, onsetDays, spread, notes }) {
+        const fd = new FormData();
+        fd.append('image', image);
+        if (audio) fd.append('audio', audio);
+        if (cropHint) fd.append('crop_hint', cropHint);
+        if (onsetDays != null && onsetDays !== '') fd.append('onset_days', onsetDays);
+        if (spread) fd.append('spread', spread);
+        if (notes) fd.append('notes', notes);
+
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+
+        const res = await fetch(`${API_BASE}/analyze`, { method: 'POST', headers, body: fd });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            const e = new Error(err.detail || `Analysis failed (HTTP ${res.status})`);
+            e.status = res.status;
+            throw e;
+        }
+        return res.json();
+    }
+
+    // ========================================================================
+    // Legacy inference (deprecated; kept for compatibility)
     // ========================================================================
 
     async runInference(caseId) {
@@ -163,6 +189,15 @@ class APIClient {
 
     async getResult(caseId) {
         return this.request(`/cases/${caseId}/result`);
+    }
+
+    // Fetch an owner-only media file as an object URL (sends the auth header).
+    async fetchMediaObjectURL(mediaId) {
+        const headers = {};
+        if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+        const res = await fetch(`${API_BASE}/media/${mediaId}`, { headers });
+        if (!res.ok) return null;
+        return URL.createObjectURL(await res.blob());
     }
 
     async pollForResult(caseId, maxAttempts = 30, intervalMs = 1000) {
