@@ -35,8 +35,10 @@ scp -P "$VPS_PORT" -r \
   docker-compose.yml \
   nginx.conf \
   requirements.txt \
+  requirements-ml.txt \
   start.sh \
   "$VPS_USER@$VPS_IP:$REMOTE_DIR/"
+
 
 echo "✅ Upload complete!"
 
@@ -54,9 +56,9 @@ ssh -p "$VPS_PORT" "$VPS_USER@$VPS_IP" "bash -s" << 'EOF'
   fi
   
   # Install Docker Compose if not present
-  if ! [ -x "$(command -v docker-compose)" ]; then
+  if ! docker compose version &>/dev/null && ! [ -x "$(command -v docker-compose)" ]; then
     echo "🐳 Installing Docker Compose..."
-    apt-get update && apt-get install -y docker-compose
+    apt-get update && apt-get install -y docker-compose-plugin || apt-get install -y docker-compose
   fi
   
   # Go to project directory
@@ -65,7 +67,11 @@ ssh -p "$VPS_PORT" "$VPS_USER@$VPS_IP" "bash -s" << 'EOF'
   
   # Spin up services in background
   echo "🚀 Launching containerized application stack on alternative ports..."
-  docker-compose up -d --build
+  if docker compose version &>/dev/null; then
+    docker compose up -d --build
+  else
+    docker-compose up -d --build
+  fi
   
   echo "📊 Container status:"
   docker ps
