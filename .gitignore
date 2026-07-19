@@ -15,6 +15,7 @@ data/dataset/
 data/raw_kaggle/
 data/models/*
 !data/models/metrics.json
+!data/models/fusion_ablation.json
 /models/
 outputs/
 *.pt

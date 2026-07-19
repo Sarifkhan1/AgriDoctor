@@ -156,11 +156,16 @@ real request.
   of field accuracy, which would be markedly lower on messy real-world photos. The
   value of the run is a real, reproducible pipeline and honest numbers — not a claim
   that it beats the deployed engine.
-- **A multimodal fusion architecture** (`src/models/train_multimodal.py`): a ViT
-  image encoder and a DistilBERT [7] text encoder joined by a cross-modal attention
-  module, with disease and severity heads. This code is implemented but **was not
-  trained** (no labelled multimodal image+text dataset was assembled); therefore no
-  fusion accuracy numbers are claimed. It remains a documented design, not a result.
+- **A multimodal fusion ablation (actually performed).** `scripts/train_fusion_real.py`
+  fuses **frozen ViT-B/16** image features [4] and **frozen DistilBERT** [7] text
+  features through a small attention-based head, and runs a real ablation. Measured
+  held-out macro-F1: **image-only 0.907, text-only 0.778, fusion 0.990** — fusion
+  beats the best single modality by **+8.3 points** (`data/models/fusion_ablation.json`).
+  **Honest caveat:** the text is *templated* symptom descriptions (no disease names,
+  with dropout/noise), not real farmer input, and the encoders are frozen — so this
+  demonstrates the pipeline and the effect of adding symptom text, not a claim about
+  real-world farmer descriptions. The full ViT+DistilBERT `train_multimodal.py`
+  (trainable encoders, severity head) remains implemented but is a documented design.
 - **A serving path for the trained classifier** (`backend/ai/cnn_predictor.py`) is
   wired into the analyzer: when a checkpoint is present it runs first and defers to
   the hosted model on low confidence. It is available as an optional local fast-path

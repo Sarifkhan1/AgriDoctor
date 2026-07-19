@@ -1,0 +1,35 @@
+{
+  "dataset": "minhhungg/plant-disease-dataset (HuggingFace)",
+  "encoders": "ViT-B/16 (ImageNet) + DistilBERT (base-uncased), both FROZEN",
+  "text_modality": "TEMPLATED symptom text from taxonomy descriptions (no disease names, word-dropout + generic noise) \u2014 NOT real farmer input",
+  "num_classes": 17,
+  "classes": [
+    "MAIZE_GLS",
+    "MAIZE_HEALTHY",
+    "MAIZE_NLB",
+    "MAIZE_RUST",
+    "PEP_BACT_SPOT",
+    "PEP_HEALTHY",
+    "POT_EARLY_BLIGHT",
+    "POT_HEALTHY",
+    "POT_LATE_BLIGHT",
+    "TOM_BACL_SPOT",
+    "TOM_EARLY_BLIGHT",
+    "TOM_HEALTHY",
+    "TOM_LATE_BLIGHT",
+    "TOM_LEAF_MOLD",
+    "TOM_MOSAIC",
+    "TOM_SEPTORIA",
+    "TOM_SPIDER_MITES"
+  ],
+  "samples": 2040,
+  "epochs": 30,
+  "ablation_macro_f1": {
+    "image_only": 0.907,
+    "text_only": 0.7775,
+    "fusion": 0.9901
+  },
+  "fusion_vs_best_single": 0.0831,
+  "device": "mps",
+  "note": "Honest, reproducible ablation. Encoders frozen; text is synthetic (templated). Offline experiment only \u2014 deployed engine is the Groq VLM."
+}

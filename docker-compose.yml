@@ -22,8 +22,9 @@ services:
       # Required — no insecure defaults. Provide via host env or a .env file.
       - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
       - GROQ_API_KEY=${GROQ_API_KEY:?GROQ_API_KEY is required}
-      - GROQ_VISION_MODEL=${GROQ_VISION_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
+      - GROQ_VISION_MODEL=${GROQ_VISION_MODEL:-qwen/qwen3.6-27b}
       - GROQ_AUDIO_MODEL=${GROQ_AUDIO_MODEL:-whisper-large-v3-turbo}
+      - GROQ_TEXT_MODEL=${GROQ_TEXT_MODEL:-llama-3.3-70b-versatile}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8020}
       - LOG_LEVEL=INFO
     volumes:

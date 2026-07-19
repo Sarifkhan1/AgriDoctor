@@ -57,6 +57,7 @@ rather than a fabricated result. Optional voice input is transcribed with
 | 🖼️ **Real image diagnosis** | Every photo is analysed at run time by a vision–language model — no mock predictions. |
 | 🚫 **Out-of-scope rejection** | Non-leaf/non-animal images, unsupported crops/animals, and unusable photos are refused, not force-fit. |
 | 🎤 **Voice input (ASR)** | Uses **Whisper** on Groq to transcribe spoken symptoms; the transcript is fused into the diagnosis. |
+| 🌐 **Multilingual advice** | Advice returned in the farmer's language (English, Hindi, Nepali, Bengali, Spanish); label codes stay in English. |
 | 💡 **Structured advice** | Immediate treatment steps, long-term prevention, and escalation guidance (vet referral for livestock). |
 | 🔒 **Optional accounts** | JWT auth with PBKDF2 hashing; login only gates saved history — anonymous diagnosis works too. |
 | 🛠️ **Data annotation tool** | Streamlit utility (`tools/annotator_app.py`) built to label images for the experimental training pipeline. |

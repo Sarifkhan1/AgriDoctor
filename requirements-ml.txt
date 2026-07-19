@@ -30,3 +30,4 @@ streamlit>=1.28.0
 
 # Data download
 kaggle>=1.6.0
+datasets>=2.14.0  # HuggingFace datasets — used by scripts/train_real.py + train_fusion_real.py

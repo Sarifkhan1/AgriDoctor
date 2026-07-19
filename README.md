@@ -123,6 +123,7 @@ says so — it will refuse a photo of a car instead of diagnosing it.
 | 🚫 **Out-of-scope rejection** | Non-leaf images, unsupported crops, and unusable photos are detected and refused, not force-fit.     |
 | 🎤 **Voice input**            | Describe symptoms with a voice note; it is transcribed (Whisper) and fused into the diagnosis.       |
 | 💡 **Actionable advice**      | Structured treatment plan: immediate actions, long-term prevention, and when to escalate.            |
+| 🌐 **Multilingual advice**    | Advice returned in the farmer's language (English, Hindi, Nepali, Bengali, Spanish) via a `language` field. |
 | 📱 **Responsive PWA**         | Mobile-first, installable Progressive Web App that works on phones, tablets, and desktops.           |
 | 🔒 **Optional accounts**      | JWT auth with PBKDF2 hashing; login only gates saved history — anonymous diagnosis works without it. |
 | 📊 **Case history**           | Logged-in users can save and revisit past diagnoses.                                                 |
@@ -375,12 +376,22 @@ VLM. Once trained, `data/models/best_model.pt` is used as an optional local fast
 (config `USE_LOCAL_CNN`) for the crop classes it covers, with the hosted model as
 fallback.
 
-The larger **multimodal fusion** model (`src/models/train_multimodal.py`, ViT +
-DistilBERT + cross-attention) is implemented but **not trained** (no image+text
-dataset assembled) — it remains a documented design, not a result:
+### Multimodal fusion ablation (real)
 
 ```bash
-# Experimental only — requires an image+text dataset you provide
+# Frozen ViT-B/16 + DistilBERT -> attention fusion; runs image/text/fusion ablation
+.venv/bin/python scripts/train_fusion_real.py --per-class 120 --epochs 30
+```
+
+**Measured** (17 classes, `data/models/fusion_ablation.json`): image-only **0.907**,
+text-only **0.778**, **fusion 0.990** macro-F1 → fusion **+8.3 pts** over the best
+single modality. ⚠️ *Caveat:* the text is templated symptom descriptions (not real
+farmer input) and encoders are frozen — it demonstrates the pipeline, not a
+real-world claim. The full trainable-encoder version (`src/models/train_multimodal.py`)
+remains a documented design:
+
+```bash
+# Full version — requires an image+text dataset you provide
 python src/models/train_multimodal.py \
     --labels data/labels.csv --images data/images --epochs 30
 

@@ -1,6 +1,13 @@
 # Latest Changes
 
-## 0. Real AI made to work + honest alignment (most recent)
+## -1. Multilingual advice, real fusion ablation, deploy fix (latest)
+- **Multilingual advice**: `POST /api/analyze` accepts a `language` field (en/hi/ne/bn/es); the vision model writes all human-readable advice in that language while keeping JSON keys and label codes in English. UI has a language selector. Verified live (Hindi output).
+- **Real multimodal fusion ablation** (`scripts/train_fusion_real.py`): frozen ViT-B/16 + DistilBERT → attention fusion. Measured macro-F1: image-only 0.907, text-only 0.778, **fusion 0.990** (+8.3 pts) — `data/models/fusion_ablation.json`. Text is templated symptom data (documented caveat); encoders frozen; offline experiment only.
+- **Real image classifier** (`scripts/train_real.py`): MobileNetV3 → **99.3%** val (`data/models/metrics.json`), kept opt-in/off by default (no OOD reject class).
+- **Deploy fix**: `docker-compose.yml` no longer defaults to the decommissioned Llama-4 model (now `qwen/qwen3.6-27b`); added `GROQ_TEXT_MODEL`. `/health` + `docker compose config` validated (daemon not run here → live container run unverified).
+- **Severity**: kept as the VLM's visual estimate (a trained regressor needs severity-labeled data that does not exist; fabricating it was avoided).
+
+## 0. Real AI made to work + honest alignment
 - **Deployed engine is a real vision–language model.** The uploaded image is analysed on every request by Groq-hosted **`qwen/qwen3.6-27b`** (Llama-4 Scout/Maverick were decommissioned by Groq; the provider now auto-resolves an available vision model so this can't silently break again). There are **no mock/hard-coded predictions**.
 - **Fixed a hint-bias bug**: the crop button is no longer sent to the vision model, so species identification is purely visual (a grape leaf under a "tomato" selection is now correctly rejected as unsupported).
 - **Robustness**: reasoning-model JSON handling (`reasoning_effort="none"`), rate-limit (HTTP 429) retry/backoff on Groq's free tier, and a friendly "AI is busy" message.

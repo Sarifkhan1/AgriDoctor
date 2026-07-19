@@ -52,10 +52,10 @@ them:
 1. **The deployed diagnosis engine (the product):** a hosted **vision–language
    model** (`qwen/qwen3.6-27b`, served on Groq) constrained by a strict-JSON prompt
    and a server-side safety-invariant layer. This handles every real diagnosis.
-2. **An experimental trained model (research prototype):** PyTorch code in `src/`
-   for a ViT/Swin image classifier and a ViT + DistilBERT cross-attention fusion
-   network. This was built to explore whether a custom trained model could serve
-   diagnoses.
+2. **Experimental trained models (research prototypes):** (a) a compact image
+   classifier (§1.3) and (b) an attention-based ViT + DistilBERT fusion model with a
+   real modality ablation (§1.3b). These were built to explore whether a custom
+   trained model could serve diagnoses.
 
 The deployed engine is the VLM because, within the project's time and compute
 budget and without a labelled in-the-wild dataset, a from-scratch model could not be
@@ -109,7 +109,35 @@ training script.
 > [!IMPORTANT]
 > An earlier version of this document reported an ablation table with an "87.9%
 > multimodal F1-score" and latency figures. **Those numbers were never measured and
-> have been removed.** Only real, reproducible results are reported here.
+> have been removed.** The numbers below (and in §1.3b) are the real, reproducible
+> replacements.
+
+## 1.3b Multimodal Fusion Ablation (real, measured)
+
+To test whether combining a symptom description with the image helps, a genuine
+modality ablation was run with `scripts/train_fusion_real.py`: **frozen ViT-B/16**
+(image, 768-d) and **frozen DistilBERT** (text, 768-d) feature extractors feed a
+small attention-based fusion head (a 2-token Transformer encoder over the two
+modality vectors) — 17 classes, 2,040 samples, results in
+`data/models/fusion_ablation.json`.
+
+| Model (held-out macro-F1) | Modality | Macro-F1 |
+| :--- | :--- | :---: |
+| Image-only | ViT-B/16 features | 0.907 |
+| Text-only | DistilBERT features | 0.778 |
+| **Fusion (cross-modal attention)** | **Image + symptom text** | **0.990** |
+
+**Fusion improved macro-F1 by +8.3 points over the best single modality
+(image-only)** — real evidence that adding the symptom description helps resolve
+cases the image alone gets wrong.
+
+> [!IMPORTANT]
+> **Honest caveat on the text modality.** The symptom text here is **templated**
+> from the taxonomy's symptom descriptions (word-dropout + generic-noise variation,
+> no disease names) — it is **not** real farmer input. So this ablation demonstrates
+> the pipeline and the *effect of adding symptom text*; it is **not** a claim about
+> real-world farmer descriptions. The encoders are frozen (feature extraction), and
+> this remains an offline experiment — the deployed engine is the Groq VLM.
 
 ## 1.4 Custom Data Annotation Infrastructure
 
