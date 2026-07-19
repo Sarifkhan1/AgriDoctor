@@ -1,8 +1,14 @@
 # Latest Changes
 
-Here is a summary of the latest updates and features integrated into the **AgriDoctor AI** application today:
+## 0. Real AI made to work + honest alignment (most recent)
+- **Deployed engine is a real vision–language model.** The uploaded image is analysed on every request by Groq-hosted **`qwen/qwen3.6-27b`** (Llama-4 Scout/Maverick were decommissioned by Groq; the provider now auto-resolves an available vision model so this can't silently break again). There are **no mock/hard-coded predictions**.
+- **Fixed a hint-bias bug**: the crop button is no longer sent to the vision model, so species identification is purely visual (a grape leaf under a "tomato" selection is now correctly rejected as unsupported).
+- **Robustness**: reasoning-model JSON handling (`reasoning_effort="none"`), rate-limit (HTTP 429) retry/backoff on Groq's free tier, and a friendly "AI is busy" message.
+- **Expanded coverage to 12 subjects**: 8 crops (added **Pepper, Eggplant**) and 4 **livestock** (**Cattle, Goat, Sheep, Poultry**) with ~91 condition labels; the safety layer prevents cross-subject label leakage.
+- **Database migration**: older `agridoctor.db` files are auto-migrated on startup (fixes "Unable to load history" from missing columns).
+- **Docs aligned with reality**: the report, README, reference sheet, and submission materials now describe the system as actually built; fabricated ML metrics were removed.
 
-## 1. Local CNN Inference Pipeline
+## 1. Local CNN Inference Pipeline (optional, not the default engine)
 - **Dataset Downloader & Organizer (`scripts/download_kaggle_data.py`)**: Developed an automated utility to download the public **PlantVillage** and **Rice Leaf Disease** datasets via the Kaggle API. The script automatically cleans, filters, and maps these folder labels to the unified AgriDoctor `DISEASE_LABELS` schema, splitting the images into `train` and `val` directories and outputting a structured `labels.csv`.
 - **Training Script Enhancements (`src/models/train_image_model.py`)**:
   - Added folder-based dataset loading support (`CropDiseaseFolderDataset`).

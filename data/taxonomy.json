@@ -58,5 +58,60 @@
     {"label_id": "CUC_APHIDS", "disease_name": "Aphid Damage", "category": "pest", "description": "Curled leaves, sooty mold"},
     {"label_id": "CUC_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
     {"label_id": "CUC_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ],
+  "pepper": [
+    {"label_id": "PEP_BACT_SPOT", "disease_name": "Bacterial Spot", "category": "bacterial", "description": "Small water-soaked spots turning brown with yellow halos on leaves/fruit"},
+    {"label_id": "PEP_PHYTOPHTHORA", "disease_name": "Phytophthora Blight", "category": "fungal", "description": "Dark stem lesions, sudden wilting, fruit rot"},
+    {"label_id": "PEP_ANTHRAC", "disease_name": "Anthracnose", "category": "fungal", "description": "Sunken circular dark lesions on fruit with concentric rings"},
+    {"label_id": "PEP_MOSAIC", "disease_name": "Mosaic Virus", "category": "viral", "description": "Mottled light/dark green leaves, distortion, stunting"},
+    {"label_id": "PEP_POWDERY", "disease_name": "Powdery Mildew", "category": "fungal", "description": "White powdery patches, mostly on leaf undersides"},
+    {"label_id": "PEP_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
+    {"label_id": "PEP_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ],
+  "eggplant": [
+    {"label_id": "EGG_VERTICILLIUM", "disease_name": "Verticillium Wilt", "category": "fungal", "description": "Yellowing and wilting of leaves, often one-sided, vascular browning"},
+    {"label_id": "EGG_FRUIT_ROT", "disease_name": "Phomopsis Fruit Rot", "category": "fungal", "description": "Sunken tan spots on fruit that enlarge and rot"},
+    {"label_id": "EGG_LEAF_SPOT", "disease_name": "Cercospora Leaf Spot", "category": "fungal", "description": "Circular gray-brown spots with concentric rings on leaves"},
+    {"label_id": "EGG_FLEA_BEETLE", "disease_name": "Flea Beetle Damage", "category": "pest", "description": "Many small round shot-holes in leaves"},
+    {"label_id": "EGG_MITES", "disease_name": "Spider Mites", "category": "pest", "description": "Fine stippling, bronzing and webbing on leaves"},
+    {"label_id": "EGG_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
+    {"label_id": "EGG_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
+  ],
+  "cattle": [
+    {"label_id": "CATTLE_FMD", "disease_name": "Foot and Mouth Disease", "category": "viral", "description": "Blisters and ulcers on mouth, tongue, teats, and between hooves; drooling"},
+    {"label_id": "CATTLE_LSD", "disease_name": "Lumpy Skin Disease", "category": "viral", "description": "Firm raised skin nodules over the body"},
+    {"label_id": "CATTLE_MASTITIS", "disease_name": "Mastitis", "category": "bacterial", "description": "Swollen, red, hard udder; abnormal milk"},
+    {"label_id": "CATTLE_RINGWORM", "disease_name": "Ringworm", "category": "fungal", "description": "Circular hairless crusty gray-white skin patches"},
+    {"label_id": "CATTLE_PINKEYE", "disease_name": "Pinkeye", "category": "bacterial", "description": "Red, watery, cloudy or ulcerated eye"},
+    {"label_id": "CATTLE_EXT_PARASITE", "disease_name": "External Parasites", "category": "parasitic", "description": "Visible ticks/lice, hair loss, scratching"},
+    {"label_id": "CATTLE_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible health issues"},
+    {"label_id": "CATTLE_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition; may need a vet"}
+  ],
+  "goat": [
+    {"label_id": "GOAT_ORF", "disease_name": "Orf (Contagious Ecthyma)", "category": "viral", "description": "Scabby crusty lesions around lips, mouth, and nose"},
+    {"label_id": "GOAT_MANGE", "disease_name": "Mange", "category": "parasitic", "description": "Crusty thickened skin, hair loss, intense itching"},
+    {"label_id": "GOAT_FOOTROT", "disease_name": "Footrot", "category": "bacterial", "description": "Swollen, foul-smelling hoof; limping"},
+    {"label_id": "GOAT_PINKEYE", "disease_name": "Pinkeye", "category": "bacterial", "description": "Red, watery, cloudy eye"},
+    {"label_id": "GOAT_RINGWORM", "disease_name": "Ringworm", "category": "fungal", "description": "Circular hairless crusty skin patches"},
+    {"label_id": "GOAT_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible health issues"},
+    {"label_id": "GOAT_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition; may need a vet"}
+  ],
+  "sheep": [
+    {"label_id": "SHEEP_FOOTROT", "disease_name": "Footrot", "category": "bacterial", "description": "Swollen, foul-smelling hoof; lameness"},
+    {"label_id": "SHEEP_ORF", "disease_name": "Orf (Contagious Ecthyma)", "category": "viral", "description": "Scabby crusty lesions around lips and mouth"},
+    {"label_id": "SHEEP_MANGE", "disease_name": "Sheep Scab / Mange", "category": "parasitic", "description": "Wool loss, crusty itchy skin, restlessness"},
+    {"label_id": "SHEEP_FLYSTRIKE", "disease_name": "Flystrike (Myiasis)", "category": "parasitic", "description": "Maggot-infested wet wool, foul smell, skin damage"},
+    {"label_id": "SHEEP_PINKEYE", "disease_name": "Pinkeye", "category": "bacterial", "description": "Red, watery, cloudy eye"},
+    {"label_id": "SHEEP_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible health issues"},
+    {"label_id": "SHEEP_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition; may need a vet"}
+  ],
+  "poultry": [
+    {"label_id": "POULTRY_FOWLPOX", "disease_name": "Fowlpox", "category": "viral", "description": "Wart-like scabby nodules on comb, wattles, and face"},
+    {"label_id": "POULTRY_NEWCASTLE", "disease_name": "Newcastle Disease", "category": "viral", "description": "Twisted neck, paralysis, greenish droppings, respiratory distress"},
+    {"label_id": "POULTRY_CORYZA", "disease_name": "Infectious Coryza", "category": "bacterial", "description": "Facial/eye swelling, nasal discharge, foul smell"},
+    {"label_id": "POULTRY_BUMBLEFOOT", "disease_name": "Bumblefoot", "category": "bacterial", "description": "Swollen footpad with a dark scab; limping"},
+    {"label_id": "POULTRY_SCALYLEG", "disease_name": "Scaly Leg Mite", "category": "parasitic", "description": "Raised, crusty, deformed leg scales"},
+    {"label_id": "POULTRY_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible health issues"},
+    {"label_id": "POULTRY_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition; may need a vet"}
   ]
 }

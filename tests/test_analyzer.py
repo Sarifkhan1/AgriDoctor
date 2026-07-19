@@ -72,6 +72,54 @@ def test_hallucinated_diagnosis_on_unsupported_crop_is_stripped():
     assert r.crop_supported is False
 
 
+def test_livestock_diagnosis_is_supported():
+    """Livestock (cattle/goat/sheep/poultry) is a first-class supported subject."""
+    r = run(
+        {
+            "kind": "diagnosis",
+            "detected_crop": "cattle",
+            "primary_label": "CATTLE_FMD",
+            "confidence": 0.8,
+            "severity_score": 0.6,
+            "advice": {"summary": "call a vet", "what_to_do_now": ["isolate animal"]},
+        }
+    )
+    assert r.kind == ResultKind.DIAGNOSIS.value
+    assert r.crop_supported is True
+    assert r.disease_name == "Foot and Mouth Disease"
+    assert r.category == "viral"
+
+
+def test_new_crops_pepper_and_eggplant_supported():
+    r = run(
+        {
+            "kind": "diagnosis",
+            "detected_crop": "eggplant",
+            "primary_label": "EGG_LEAF_SPOT",
+            "confidence": 0.7,
+        }
+    )
+    assert r.kind == ResultKind.DIAGNOSIS.value
+    assert r.crop_supported is True
+    assert r.disease_name == "Cercospora Leaf Spot"
+
+
+def test_cross_subject_label_is_rejected():
+    """A crop label on an animal subject (or vice versa) must not leak through."""
+    r = run(
+        {
+            "kind": "diagnosis",
+            "detected_crop": "cattle",
+            "primary_label": "TOM_EARLY_BLIGHT",  # a crop label on an animal
+            "confidence": 0.95,
+            "advice": {"summary": "fake"},
+        }
+    )
+    assert r.kind == ResultKind.LOW_CONFIDENCE.value
+    assert r.primary_label is None
+    assert r.advice is None
+
+
 def test_healthy_label_normalizes_kind():
     r = run(
         {"kind": "diagnosis", "detected_crop": "potato", "primary_label": "POT_HEALTHY"}

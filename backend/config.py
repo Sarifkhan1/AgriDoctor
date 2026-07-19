@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # --- Groq (required) ---
     groq_api_key: str
-    groq_vision_model: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    groq_vision_model: str = "qwen/qwen3.6-27b"
     groq_audio_model: str = "whisper-large-v3-turbo"
     groq_text_model: str = "llama-3.3-70b-versatile"
     ai_timeout_seconds: int = 30
@@ -35,7 +35,10 @@ class Settings(BaseSettings):
     # --- Local CNN (optional — requires torch + a trained model) ---
     cnn_model_path: str = "data/models/best_model.pt"
     cnn_confidence_threshold: float = 0.80
-    use_local_cnn: bool = True
+    # OFF by default: the trained classifier has no out-of-scope reject class, so
+    # enabling it would bypass the Groq safety layer (a cattle/car photo could return
+    # a confident crop disease). Opt in only for in-scope crop images.
+    use_local_cnn: bool = False
 
     # --- Uploads / CORS ---
     max_upload_mb: int = 10
