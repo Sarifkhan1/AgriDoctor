@@ -105,6 +105,9 @@ else
   docker-compose up -d --build
 fi
 
+# Ensure correct permissions for database and model folders
+chmod -R 777 /root/agri-doctor/data /root/agri-doctor/models
+
 echo "📊 Container status:"
 docker ps
 exit
