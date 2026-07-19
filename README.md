@@ -1,4 +1,4 @@
-# AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor 🌿
+# Final-Year-Project-Mohammad-Sarif-Khan-AgriDoctor 🌿
 
 > **An AI-powered assistant that diagnoses crop-leaf diseases from a photo, with
 > optional voice input, and returns treatment advice — for six crops.**
