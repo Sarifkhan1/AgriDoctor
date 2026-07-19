@@ -10,9 +10,35 @@ from typing import Optional
 
 from .taxonomy import SUPPORTED_CROPS, SUPPORTED_LIVESTOCK, labels_for_prompt
 
+# Languages the farmer can request advice in. Keys are the values sent by the UI /
+# API; values are the human names injected into the prompt. The model writes only
+# the human-readable text in this language — JSON keys and label codes stay English.
+SUPPORTED_LANGUAGES = {
+    "en": "English",
+    "hi": "Hindi (हिन्दी)",
+    "ne": "Nepali (नेपाली)",
+    "es": "Spanish (Español)",
+    "bn": "Bengali (বাংলা)",
+}
 
-def build_system_prompt() -> str:
-    return f"""You are AgriDoctor, an expert agricultural diagnostician covering BOTH
+
+def _language_directive(language: Optional[str]) -> str:
+    if not language:
+        return ""
+    name = SUPPORTED_LANGUAGES.get(language.strip().lower())
+    if not name or name.startswith("English"):
+        return ""
+    return (
+        f"\nLANGUAGE: Write ALL human-readable text — the 'message', 'visual_evidence', "
+        f"and every 'advice' string (summary, what_to_do_now, prevention, "
+        f"when_to_get_help) — in {name}, using natural, simple wording a farmer would "
+        f"understand. Do NOT translate the JSON keys, the 'detected_crop' value, or the "
+        f"label codes (e.g. TOM_EARLY_BLIGHT) — those stay in English.\n"
+    )
+
+
+def build_system_prompt(language: Optional[str] = None) -> str:
+    return f"""{_language_directive(language)}You are AgriDoctor, an expert agricultural diagnostician covering BOTH
 plant pathology (crop leaf diseases) and basic livestock health. You analyze a photo
 (optionally with a farmer's spoken/typed notes) and return a STRICT JSON diagnosis.
 Reason ONLY from what is ACTUALLY VISIBLE in the image — never from assumptions or the

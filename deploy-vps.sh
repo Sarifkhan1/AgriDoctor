@@ -37,6 +37,8 @@ scp -P "$VPS_PORT" -r \
   requirements.txt \
   requirements-ml.txt \
   start.sh \
+  .env \
+  agridoctor.cloud.conf \
   "$VPS_USER@$VPS_IP:$REMOTE_DIR/"
 
 

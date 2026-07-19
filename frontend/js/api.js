@@ -151,7 +151,7 @@ class APIClient {
     // Instant Analysis (the real AI path)
     // ========================================================================
 
-    async analyze({ image, audio, cropHint, onsetDays, spread, notes }) {
+    async analyze({ image, audio, cropHint, onsetDays, spread, notes, language }) {
         const fd = new FormData();
         fd.append('image', image);
         if (audio) fd.append('audio', audio);
@@ -159,6 +159,7 @@ class APIClient {
         if (onsetDays != null && onsetDays !== '') fd.append('onset_days', onsetDays);
         if (spread) fd.append('spread', spread);
         if (notes) fd.append('notes', notes);
+        if (language) fd.append('language', language);
 
         const headers = {};
         if (this.token) headers['Authorization'] = `Bearer ${this.token}`;

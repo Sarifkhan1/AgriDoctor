@@ -253,6 +253,7 @@ async function runAnalysis() {
     onsetDays: document.getElementById('onset-days')?.value || undefined,
     spread: document.querySelector('input[name="spread"]:checked')?.value || undefined,
     notes: document.getElementById('notes')?.value || undefined,
+    language: document.getElementById('language-select')?.value || undefined,
   };
   if (state.audioBlob) {
     payload.audio = new File([state.audioBlob], 'voice.webm', { type: 'audio/webm' });

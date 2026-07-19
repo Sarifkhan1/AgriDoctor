@@ -19,6 +19,7 @@ async def analyze(
     onset_days: Optional[int] = Form(None),
     spread: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
+    language: Optional[str] = Form(None),
     user: Optional[dict] = Depends(get_current_user_optional),
 ):
     image_bytes = await image.read()
@@ -40,6 +41,7 @@ async def analyze(
         onset_days=onset_days,
         spread=spread,
         notes=notes,
+        language=language,
         user=user,
     )
     return {**result.model_dump(), "case_id": case_id}

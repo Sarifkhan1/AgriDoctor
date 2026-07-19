@@ -40,6 +40,7 @@ class AnalysisService:
         spread: Optional[str],
         notes: Optional[str],
         user: Optional[dict],
+        language: Optional[str] = None,
     ) -> tuple[AnalysisResult, Optional[str]]:
         mime, ext = validate_image(
             image_bytes, image_filename or "", image_content_type
@@ -60,6 +61,7 @@ class AnalysisService:
                 onset_days=onset_days,
                 spread=spread,
                 nlu_hints=nlu_hints,
+                language=language,
             )
         except HTTPException:
             raise

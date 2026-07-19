@@ -70,6 +70,7 @@ class Analyzer:
         onset_days: Optional[int] = None,
         spread: Optional[str] = None,
         nlu_hints: Optional[str] = None,
+        language: Optional[str] = None,
     ) -> AnalysisResult:
         settings = get_settings()
 
@@ -132,7 +133,7 @@ class Analyzer:
             spread=spread,
             nlu_hints=nlu_hints,
         )
-        system_prompt = build_system_prompt()
+        system_prompt = build_system_prompt(language=language)
         data_url = self._data_url(image_bytes, image_mime)
 
         raw = self.provider.analyze_image(data_url, system_prompt, context)
