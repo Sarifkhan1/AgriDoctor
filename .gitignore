@@ -13,8 +13,9 @@ data/uploads/
 data/cache/
 data/dataset/
 data/raw_kaggle/
-data/models/
-models/
+data/models/*
+!data/models/metrics.json
+/models/
 outputs/
 *.pt
 *.ptl

@@ -63,8 +63,15 @@ class AnalysisService:
             )
         except HTTPException:
             raise
-        except Exception:
+        except Exception as exc:
             logger.exception("AI analysis failed")
+            msg = str(exc).lower()
+            if "rate_limit" in msg or "rate limit" in msg or "429" in msg:
+                raise HTTPException(
+                    429,
+                    "The AI service is busy right now (free-tier limit reached). "
+                    "Please wait a few seconds and try again.",
+                )
             raise HTTPException(
                 503,
                 "The analysis service is temporarily unavailable. Please try again.",

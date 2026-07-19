@@ -126,7 +126,41 @@ CREATE INDEX IF NOT EXISTS idx_predictions_case ON predictions(case_id);
 """
 
 
+# Columns that were added after the first schema shipped. Older database files
+# created before the AI rebuild are missing these, and `CREATE TABLE IF NOT EXISTS`
+# will not add them — so we ALTER them in idempotently. SQLite only allows adding
+# columns with a constant (or no) default, which is fine for all of these.
+_MIGRATIONS = {
+    "predictions": {
+        "provider": "TEXT",
+        "model_id": "TEXT",
+        "kind": "TEXT",
+        "detected_crop": "TEXT",
+        "crop_supported": "INTEGER",
+        "is_leaf": "INTEGER",
+        "disease_name": "TEXT",
+        "visual_evidence": "TEXT",
+        "raw_response": "TEXT",
+    },
+    "media": {
+        "transcript": "TEXT",
+    },
+}
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add any columns missing from an older database file (idempotent)."""
+    for table, columns in _MIGRATIONS.items():
+        existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}
+        if not existing:
+            continue  # table doesn't exist yet; _SCHEMA will have created it
+        for name, coltype in columns.items():
+            if name not in existing:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {coltype}")
+
+
 def init_db() -> None:
-    """Create tables and indexes if they do not exist (idempotent)."""
+    """Create tables and indexes if they do not exist, then migrate (idempotent)."""
     with get_db() as conn:
         conn.executescript(_SCHEMA)
+        _migrate(conn)

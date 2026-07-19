@@ -23,7 +23,13 @@ from .cnn_predictor import CNNPredictor, get_predictor
 from .prompts import build_system_prompt, build_user_context
 from .provider import AIProvider, GroqProvider
 from .schemas import AdviceBlock, AnalysisResult, ResultKind, Urgency
-from .taxonomy import SUPPORTED_CROPS, all_label_ids, label_meta
+from .taxonomy import (
+    SUPPORTED_CROPS,
+    SUPPORTED_LIVESTOCK,
+    SUPPORTED_SUBJECTS,
+    all_label_ids,
+    label_meta,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,8 +118,14 @@ class Analyzer:
                 )
 
         # --- Groq vision pipeline (full) ---
+        # NOTE: we deliberately do NOT pass crop_hint into the vision prompt.
+        # The crop button is an unreliable guess and, when injected as text, the
+        # model tends to defer to it and mislabel other species (e.g. a grape leaf
+        # called "tomato"). Species identification must be purely visual. The hint
+        # is still used afterwards in _enforce_invariants for the "you picked X but
+        # this looks like Y" flag.
         context = build_user_context(
-            crop_hint=crop_hint,
+            crop_hint=None,
             transcript=transcript,
             notes=notes,
             onset_days=onset_days,
@@ -164,7 +176,7 @@ class Analyzer:
             is_plant=True,
             is_leaf=True,
             detected_crop=crop_name,
-            crop_supported=crop_name in SUPPORTED_CROPS if crop_name else False,
+            crop_supported=crop_name in SUPPORTED_SUBJECTS if crop_name else False,
             primary_label=label,
             disease_name=meta["disease_name"] if meta else None,
             category=meta["category"] if meta else None,
@@ -283,6 +295,11 @@ class Analyzer:
         if not raw:
             return None
         text = raw.strip()
+        # Strip reasoning-model <think>...</think> blocks if any leaked through.
+        if "<think>" in text:
+            import re as _re
+
+            text = _re.sub(r"<think>.*?</think>", "", text, flags=_re.DOTALL).strip()
         # Strip accidental code fences.
         if text.startswith("```"):
             text = text.strip("`")
@@ -327,12 +344,13 @@ class Analyzer:
             r.advice = None
             r.crop_supported = False
         else:
-            # Diagnosis / healthy: must be a supported crop with a valid label.
+            # Diagnosis / healthy: must be a supported subject (crop or livestock)
+            # with a valid label that BELONGS to that subject.
             detected = (r.detected_crop or "").strip().lower()
-            r.crop_supported = detected in SUPPORTED_CROPS
+            r.crop_supported = detected in SUPPORTED_SUBJECTS
 
             if not r.crop_supported:
-                # Model claimed a diagnosis for an unsupported crop -> reject.
+                # Model claimed a diagnosis for an unsupported subject -> reject.
                 r.kind = ResultKind.UNSUPPORTED_CROP
                 r.primary_label = None
                 r.disease_name = None
@@ -340,30 +358,38 @@ class Analyzer:
                 r.secondary_labels = []
                 r.advice = None
                 if not r.message:
-                    name = r.detected_crop or "this plant"
+                    name = r.detected_crop or "this subject"
                     r.message = (
                         f"This looks like {name}, which AgriDoctor doesn't support yet. "
-                        f"Supported crops: {', '.join(SUPPORTED_CROPS)}."
+                        f"Supported crops: {', '.join(SUPPORTED_CROPS)}. "
+                        f"Supported livestock: {', '.join(SUPPORTED_LIVESTOCK)}."
                     )
             else:
-                # Validate the label against the taxonomy and enrich names.
-                if r.primary_label not in all_label_ids():
+                meta = label_meta(r.primary_label) if r.primary_label else None
+                # Label must exist AND belong to the detected subject (no cross-subject
+                # leakage, e.g. a TOM_* label on a cattle photo).
+                label_ok = meta is not None and meta.get("crop") == detected
+                if not label_ok:
                     r.kind = ResultKind.LOW_CONFIDENCE
                     r.primary_label = None
+                    r.disease_name = None
+                    r.category = None
+                    r.secondary_labels = []
                     r.advice = None
                     if not r.message:
+                        subj = "animal" if detected in SUPPORTED_LIVESTOCK else "crop"
                         r.message = (
-                            "We recognized the crop but couldn't confidently identify the "
-                            "condition. Try a sharper close-up of the affected area."
+                            f"We recognized the {subj} but couldn't confidently identify "
+                            f"the condition. Try a sharper close-up of the affected area."
                         )
                 else:
-                    meta = label_meta(r.primary_label)
-                    if meta:
-                        r.disease_name = r.disease_name or meta["disease_name"]
-                        r.category = r.category or meta["category"]
-                    # Keep only valid secondary labels.
+                    r.disease_name = r.disease_name or meta["disease_name"]
+                    r.category = r.category or meta["category"]
+                    # Keep only valid secondary labels that belong to this subject.
                     r.secondary_labels = [
-                        s for s in r.secondary_labels if s in all_label_ids()
+                        s
+                        for s in r.secondary_labels
+                        if (m := label_meta(s)) and m.get("crop") == detected
                     ][:2]
                     # A *_HEALTHY label means healthy, not a disease.
                     if r.primary_label.endswith("_HEALTHY"):

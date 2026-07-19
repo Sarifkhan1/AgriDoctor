@@ -16,6 +16,12 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="css/styles.css" />
+    <script>
+      (function() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+      })();
+    </script>
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -29,7 +35,8 @@
     <div id="loading-overlay" class="loading-overlay hidden">
       <div class="loader">
         <div class="plant-loader">🌱</div>
-        <p>Analyzing your crop...</p>
+        <p id="loading-stage">Uploading your photo…</p>
+        <p class="loading-sub">This can take up to a minute on the free AI tier.</p>
       </div>
     </div>
 
@@ -50,6 +57,12 @@
             <a href="#" class="nav-link" data-page="history">History</a>
           </nav>
           <div class="header-actions">
+            <button id="theme-toggle" class="theme-toggle-btn" title="Toggle Dark/Light Mode">
+              <!-- Sun Icon (visible in dark mode) -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-icon sun-icon"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+              <!-- Moon Icon (visible in light mode) -->
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="theme-icon moon-icon"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            </button>
             <button id="auth-btn" class="btn btn-primary">
               <span class="btn-icon">👤</span>
               Login
@@ -210,11 +223,12 @@
 
             <!-- Step 1: Crop Selection -->
             <div class="diagnose-step" id="step-1">
-              <h2>Select Your Crop</h2>
+              <h2>What are you diagnosing?</h2>
               <p class="step-hint">
-                Pick your crop, or skip it — the AI detects the crop from the
-                photo and will tell you if it isn't one we support.
+                Pick a crop or animal, or skip it — the AI detects the subject
+                from the photo and will tell you if it isn't one we support.
               </p>
+              <h3 class="crop-group-title">🌿 Crops (photograph an affected leaf)</h3>
               <div class="crop-grid">
                 <button class="crop-card" data-crop="tomato">
                   <span class="crop-emoji">🍅</span>
@@ -240,10 +254,37 @@
                   <span class="crop-emoji">🥒</span>
                   <span class="crop-name">Cucumber</span>
                 </button>
+                <button class="crop-card" data-crop="pepper">
+                  <span class="crop-emoji">🫑</span>
+                  <span class="crop-name">Pepper</span>
+                </button>
+                <button class="crop-card" data-crop="eggplant">
+                  <span class="crop-emoji">🍆</span>
+                  <span class="crop-name">Eggplant</span>
+                </button>
+              </div>
+              <h3 class="crop-group-title">🐄 Livestock (photograph the affected area)</h3>
+              <div class="crop-grid">
+                <button class="crop-card" data-crop="cattle">
+                  <span class="crop-emoji">🐄</span>
+                  <span class="crop-name">Cattle</span>
+                </button>
+                <button class="crop-card" data-crop="goat">
+                  <span class="crop-emoji">🐐</span>
+                  <span class="crop-name">Goat</span>
+                </button>
+                <button class="crop-card" data-crop="sheep">
+                  <span class="crop-emoji">🐑</span>
+                  <span class="crop-name">Sheep</span>
+                </button>
+                <button class="crop-card" data-crop="poultry">
+                  <span class="crop-emoji">🐔</span>
+                  <span class="crop-name">Poultry</span>
+                </button>
               </div>
               <div class="step-actions step-actions--center">
                 <button class="btn btn-outline" id="skip-crop">
-                  ✨ Skip — auto-detect the crop
+                  ✨ Skip — auto-detect from the photo
                 </button>
               </div>
             </div>

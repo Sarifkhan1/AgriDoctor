@@ -35,8 +35,14 @@ const UI = (() => {
 
   const CROP_EMOJI = {
     tomato: '🍅', potato: '🥔', rice: '🌾', maize: '🌽', chili: '🌶️', cucumber: '🥒',
+    pepper: '🫑', eggplant: '🍆',
+    cattle: '🐄', goat: '🐐', sheep: '🐑', poultry: '🐔',
   };
-  const SUPPORTED = ['Tomato 🍅', 'Potato 🥔', 'Rice 🌾', 'Maize 🌽', 'Chili 🌶️', 'Cucumber 🥒'];
+  const SUPPORTED = [
+    'Tomato 🍅', 'Potato 🥔', 'Rice 🌾', 'Maize 🌽', 'Chili 🌶️', 'Cucumber 🥒',
+    'Pepper 🫑', 'Eggplant 🍆',
+    'Cattle 🐄', 'Goat 🐐', 'Sheep 🐑', 'Poultry 🐔',
+  ];
 
   function titleCase(s) {
     return (s || '').replace(/\b\w/g, (c) => c.toUpperCase());

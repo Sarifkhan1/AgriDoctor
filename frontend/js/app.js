@@ -216,11 +216,36 @@ function initAnalysis() {
   document.getElementById('analyze-btn')?.addEventListener('click', runAnalysis);
 }
 
+const LOADING_STAGES = [
+  'Uploading your photo…',
+  'Checking the image is a plant leaf…',
+  'Identifying the crop species…',
+  'Looking for disease symptoms…',
+  'Assessing severity…',
+  'Writing your treatment plan…',
+  'Almost there — finalising the diagnosis…',
+];
+let _loadingTimer = null;
+function startLoadingStages() {
+  const el = document.getElementById('loading-stage');
+  if (!el) return;
+  let i = 0;
+  el.textContent = LOADING_STAGES[0];
+  _loadingTimer = setInterval(() => {
+    i = Math.min(i + 1, LOADING_STAGES.length - 1);
+    el.textContent = LOADING_STAGES[i];
+  }, 3500);
+}
+function stopLoadingStages() {
+  if (_loadingTimer) { clearInterval(_loadingTimer); _loadingTimer = null; }
+}
+
 async function runAnalysis() {
   if (!state.selectedImage) { alert('Please add a leaf photo first.'); showStep(2); return; }
 
   const overlay = document.getElementById('loading-overlay');
   overlay?.classList.remove('hidden');
+  startLoadingStages();
 
   const payload = {
     image: state.selectedImage,
@@ -247,6 +272,7 @@ async function runAnalysis() {
     UI.renderError(container, msg);
     showStep(4);
   } finally {
+    stopLoadingStages();
     overlay?.classList.add('hidden');
   }
 }
@@ -392,9 +418,24 @@ function updateAuthUI() {
 }
 
 // ============================================================================
+// Theme Toggle
+// ============================================================================
+function initThemeToggle() {
+  const themeToggle = document.getElementById('theme-toggle');
+  if (!themeToggle) return;
+
+  themeToggle.addEventListener('click', () => {
+    const nextTheme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', nextTheme);
+    localStorage.setItem('theme', nextTheme);
+  });
+}
+
+// ============================================================================
 // Init
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
+  initThemeToggle();
   initCropSelection();
   initImageUpload();
   initCamera();

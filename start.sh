@@ -5,12 +5,9 @@ echo "🧹 Cleaning up ports..."
 lsof -ti:8000 | xargs kill -9 2>/dev/null
 lsof -ti:3000 | xargs kill -9 2>/dev/null
 
-# Start Backend
 echo "🚀 Starting Backend (Port 8000)..."
-cd backend
-nohup uvicorn main:app --host 0.0.0.0 --port 8000 > ../backend.log 2>&1 &
+nohup ./.venv/bin/uvicorn backend.main:app --host 0.0.0.0 --port 8000 > backend.log 2>&1 &
 BACKEND_PID=$!
-cd ..
 
 # Start Frontend
 echo "🌐 Starting Frontend (Port 3000)..."

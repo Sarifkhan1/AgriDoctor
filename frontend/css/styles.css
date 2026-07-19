@@ -57,6 +57,7 @@
   /* Ultra Modern Glassmorphism Controls */
   --glass-bg: rgba(255, 255, 255, 0.72);
   --glass-bg-hover: rgba(255, 255, 255, 0.85);
+  --glass-bg-light: rgba(255, 255, 255, 0.45);
   --glass-border: rgba(255, 255, 255, 0.5);
   --glass-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.08);
 
@@ -194,7 +195,7 @@ body {
    ============================================================================ */
 
 .header {
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--glass-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid var(--glass-border);
@@ -298,6 +299,74 @@ body {
   color: var(--color-white);
   background: var(--gradient-primary);
   box-shadow: var(--shadow-primary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.theme-toggle-btn {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--color-gray-700);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  padding: 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--glass-shadow);
+}
+
+.theme-toggle-btn:hover {
+  background: var(--glass-bg-hover);
+  transform: scale(1.08) rotate(15deg);
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 15px var(--color-primary-glow);
+}
+
+[data-theme="dark"] .theme-toggle-btn {
+  color: var(--color-gray-300);
+}
+
+[data-theme="dark"] .theme-toggle-btn:hover {
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.15);
+}
+
+.theme-icon {
+  position: absolute;
+  top: calc(50% - 10px);
+  left: calc(50% - 10px);
+  width: 20px;
+  height: 20px;
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s ease;
+}
+
+/* Light mode defaults: show moon, hide/spin out sun */
+.theme-toggle-btn .sun-icon {
+  opacity: 0;
+  transform: scale(0.3) rotate(-90deg);
+}
+.theme-toggle-btn .moon-icon {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+/* Dark mode overrides: show/spin in sun, hide/spin out moon */
+[data-theme="dark"] .theme-toggle-btn .sun-icon {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+[data-theme="dark"] .theme-toggle-btn .moon-icon {
+  opacity: 0;
+  transform: scale(0.3) rotate(90deg);
 }
 
 /* ============================================================================
@@ -834,6 +903,16 @@ body {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--spacing-4);
+}
+
+.crop-group-title {
+  margin: var(--spacing-6) 0 var(--spacing-3);
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--color-gray-600);
+}
+.crop-group-title:first-of-type {
+  margin-top: var(--spacing-2);
 }
 
 .crop-card {
@@ -1748,6 +1827,14 @@ body {
   color: var(--color-gray-600);
   font-weight: 600;
   font-size: var(--font-size-lg);
+  transition: opacity 0.3s ease;
+}
+.loader .loading-sub {
+  margin-top: var(--spacing-2);
+  font-weight: 400;
+  font-size: var(--font-size-sm);
+  color: var(--color-gray-500);
+  opacity: 0.85;
 }
 
 /* ============================================================================
@@ -3104,22 +3191,59 @@ textarea:focus-visible {
 .safety__text { color: var(--color-gray-600); font-size: var(--font-size-sm); margin-top: 2px; }
 
 /* --- Dark mode --- */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-white: #131a22;
-    --color-gray-50: #0f151c;
-    --color-gray-100: #1a222c;
-    --color-gray-200: #273240;
-    --color-gray-300: #3a4757;
-    --color-gray-500: #94a3b8;
-    --color-gray-600: #cbd5e1;
-    --color-gray-700: #e2e8f0;
-    --color-gray-800: #f1f5f9;
-    --color-gray-900: #f8fafc;
-    --glass-bg: rgba(19, 26, 34, 0.8);
-  }
-  body { background: #0b0f14; }
-  .inline-banner { color: #fde68a; }
-  .state-card__title { color: var(--color-gray-900); }
+[data-theme="dark"] {
+  --color-white: #131a22;
+  --color-gray-50: #0f151c;
+  --color-gray-100: #1a222c;
+  --color-gray-200: #273240;
+  --color-gray-300: #3a4757;
+  --color-gray-500: #94a3b8;
+  --color-gray-600: #cbd5e1;
+  --color-gray-700: #e2e8f0;
+  --color-gray-800: #f1f5f9;
+  --color-gray-900: #f8fafc;
+  
+  --glass-bg: rgba(19, 26, 34, 0.85);
+  --glass-bg-hover: rgba(27, 34, 44, 0.9);
+  --glass-bg-light: rgba(15, 21, 28, 0.45);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-shadow: 0 12px 40px -12px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] body { 
+  background: #0b0f14; 
+}
+
+[data-theme="dark"] .inline-banner { 
+  color: #fde68a; 
+}
+
+[data-theme="dark"] .state-card__title { 
+  color: var(--color-gray-900); 
+}
+
+/* Smooth global transitions for theme changes */
+body,
+.header,
+.page,
+.hero,
+.card,
+.state-card,
+.diag,
+.diag__left,
+.diag__right,
+.diag__facts,
+.fact,
+.section,
+.safety,
+.nav-menu,
+.nav-link,
+.btn,
+.theme-toggle-btn,
+.chips,
+.chip,
+.history-item,
+.modal-content {
+  transition: background-color 0.4s ease, border-color 0.4s ease, color 0.4s ease, box-shadow 0.4s ease, backdrop-filter 0.4s ease;
 }
 
