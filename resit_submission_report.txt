@@ -410,7 +410,7 @@ Providing automated agricultural and veterinary diagnostics carries real safety 
   (Hosted on a secure VPS instance with Let's Encrypt SSL. Accessible to anyone, verified functional, and guaranteed active through September 1st, 2026.)
 
 * Git Repository (Complete Source Code & Resources):
-  https://github.com/Sarifkhan1/AI-4-Creativity-Project-Mohammad-Sarif-Khan-AgriDoctor
+  https://github.com/Sarifkhan1/AgriDoctor
   (Publicly accessible GitHub repository containing the complete backend FastAPI service, the frontend PWA code, deployment configurations, and all experimental PyTorch scripts.)
 
 * Video Demonstration:
