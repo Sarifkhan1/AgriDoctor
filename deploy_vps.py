@@ -49,7 +49,7 @@ def main():
     main_files = [
         "backend", "config", "docs", "frontend", "src", "tools",
         "Dockerfile", "docker-compose.yml", "nginx.conf", "requirements.txt",
-        "requirements-ml.txt", "start.sh", ".env", "agridoctor.cloud.conf"
+        "requirements-ml.txt", "requirements-serve.txt", "start.sh", ".env", "agridoctor.cloud.conf"
     ]
     valid_main = [f for f in main_files if os.path.exists(f)]
     main_str = " ".join(valid_main)
