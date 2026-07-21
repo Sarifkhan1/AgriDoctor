@@ -20,6 +20,14 @@ What this run does beyond a plain fine-tune, and why:
     would "reject" by detecting blur rather than by understanding content. Random
     downscale-then-upscale destroys that shortcut.
   * Class-balanced sampling + label smoothing, since class counts are uneven.
+  * MixUp / CutMix. Blending images and their labels stops the network betting
+    everything on one dominant cue, which is exactly the PlantVillage failure
+    mode (memorise the plain background, ignore the lesion). It also flattens
+    overconfidence, which matters here because the serving layer routes on the
+    confidence value itself.
+  * An exponential moving average of the weights, evaluated alongside the raw
+    weights. The EMA copy is usually a little better and noticeably more stable;
+    whichever genuinely scores higher on validation is what gets saved.
   * Temperature scaling fitted on the validation split. Raw softmax from a
     fine-tuned CNN is badly overconfident, and serving thresholds a miscalibrated
     confidence is how you ship a wrong diagnosis at "97%".
@@ -37,6 +45,7 @@ Usage:
 """
 
 import argparse
+import contextlib
 import json
 import logging
 import time
@@ -137,6 +146,89 @@ def set_backbone_trainable(model, head, trainable: bool):
             p.requires_grad = trainable
 
 
+class ModelEMA:
+    """Exponential moving average of model weights.
+
+    Keeps a slowly-updated shadow copy of every float parameter. The averaged
+    weights sit nearer the centre of the loss basin than any single SGD iterate,
+    which usually generalises slightly better and swings far less between epochs.
+    Cheap: one extra copy of the weights and a lerp per step.
+    """
+
+    def __init__(self, model, decay=0.999):
+        import copy
+
+        self.ema = copy.deepcopy(model).eval()
+        self.decay = decay
+        for p in self.ema.parameters():
+            p.requires_grad_(False)
+
+    @property
+    def module(self):
+        return self.ema
+
+    def update(self, model):
+        import torch
+
+        with torch.no_grad():
+            for ema_v, model_v in zip(
+                self.ema.state_dict().values(), model.state_dict().values()
+            ):
+                if ema_v.dtype.is_floating_point:
+                    ema_v.mul_(self.decay).add_(model_v.detach(), alpha=1 - self.decay)
+                else:
+                    ema_v.copy_(model_v)  # counters/num_batches_tracked
+
+
+def mix_batch(images, labels, num_classes, mixup_alpha, cutmix_alpha, smoothing):
+    """Apply MixUp or CutMix, returning soft targets.
+
+    Returns (images, soft_targets). Soft targets carry the label smoothing too,
+    so the caller uses a plain soft-target cross-entropy for every batch and the
+    two regularisers compose instead of fighting.
+    """
+    import numpy as np
+    import torch
+
+    batch = images.size(0)
+    off = smoothing / num_classes
+    targets = torch.full((batch, num_classes), off, device=labels.device)
+    targets.scatter_(1, labels.unsqueeze(1), 1.0 - smoothing + off)
+
+    use_mixup = mixup_alpha > 0
+    use_cutmix = cutmix_alpha > 0
+    if not (use_mixup or use_cutmix):
+        return images, targets
+
+    # Pick one of the two per batch so their effects stay interpretable.
+    do_cutmix = use_cutmix and (not use_mixup or np.random.rand() < 0.5)
+    alpha = cutmix_alpha if do_cutmix else mixup_alpha
+    lam = float(np.random.beta(alpha, alpha))
+    perm = torch.randperm(batch, device=images.device)
+
+    if do_cutmix:
+        _, _, h, w = images.shape
+        ratio = np.sqrt(1.0 - lam)
+        cut_h, cut_w = int(h * ratio), int(w * ratio)
+        cy, cx = np.random.randint(h), np.random.randint(w)
+        y1, y2 = np.clip([cy - cut_h // 2, cy + cut_h // 2], 0, h)
+        x1, x2 = np.clip([cx - cut_w // 2, cx + cut_w // 2], 0, w)
+        images[:, :, y1:y2, x1:x2] = images[perm, :, y1:y2, x1:x2]
+        # Recompute lam from the true pasted area (rounding makes it drift).
+        lam = 1.0 - ((y2 - y1) * (x2 - x1) / (h * w))
+    else:
+        images = lam * images + (1.0 - lam) * images[perm]
+
+    targets = lam * targets + (1.0 - lam) * targets[perm]
+    return images, targets
+
+
+def soft_target_cross_entropy(logits, targets):
+    import torch
+
+    return -(targets * torch.log_softmax(logits, dim=-1)).sum(dim=-1).mean()
+
+
 def make_balanced_sampler(dataset):
     """Sample inversely to class frequency so rare classes aren't drowned out."""
     from collections import Counter
@@ -152,40 +244,67 @@ def make_balanced_sampler(dataset):
     )
 
 
-def run_epoch(model, loader, device, criterion, optimizer=None):
-    """One pass. Training when `optimizer` is given, else evaluation."""
+def train_epoch(model, loader, device, optimizer, scheduler, num_classes, args, ema):
+    """One training pass with MixUp/CutMix, per-step cosine schedule and EMA."""
     import torch
 
-    training = optimizer is not None
-    model.train(training)
+    model.train()
     total_loss, seen = 0.0, 0
-    all_preds, all_labels, all_probs = [], [], []
 
     for images, labels in loader:
         images = images.to(device, non_blocking=True)
         labels = labels.to(device, non_blocking=True)
 
-        with torch.set_grad_enabled(training):
-            logits = model(images)
-            loss = criterion(logits, labels)
+        images, targets = mix_batch(
+            images, labels, num_classes,
+            args.mixup, args.cutmix, args.label_smoothing,
+        )
 
-        if training:
-            optimizer.zero_grad(set_to_none=True)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
-            optimizer.step()
+        logits = model(images)
+        loss = soft_target_cross_entropy(logits, targets)
+
+        optimizer.zero_grad(set_to_none=True)
+        loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+        optimizer.step()
+        if scheduler is not None:
+            scheduler.step()  # stepped per batch, not per epoch
+        if ema is not None:
+            ema.update(model)
 
         total_loss += loss.item() * images.size(0)
         seen += images.size(0)
-        all_preds.append(logits.argmax(1).detach().cpu())
-        all_labels.append(labels.detach().cpu())
-        if not training:
-            all_probs.append(logits.detach().cpu())
 
-    preds = torch.cat(all_preds).numpy()
-    labels_np = torch.cat(all_labels).numpy()
-    logits_cat = torch.cat(all_probs) if all_probs else None
-    return total_loss / max(seen, 1), preds, labels_np, logits_cat
+    return total_loss / max(seen, 1)
+
+
+@contextlib.contextmanager
+def _eval_mode(model):
+    was_training = model.training
+    model.eval()
+    try:
+        yield
+    finally:
+        model.train(was_training)
+
+
+def evaluate(model, loader, device, num_classes, smoothing=0.0):
+    """Evaluation pass. Returns (loss, preds, labels, logits)."""
+    import torch
+
+    all_logits, all_labels = [], []
+    with _eval_mode(model), torch.no_grad():
+        for images, labels in loader:
+            logits = model(images.to(device, non_blocking=True))
+            all_logits.append(logits.cpu())
+            all_labels.append(labels)
+
+    logits_cat = torch.cat(all_logits)
+    labels_cat = torch.cat(all_labels)
+    loss = torch.nn.functional.cross_entropy(
+        logits_cat, labels_cat, label_smoothing=smoothing
+    ).item()
+    return loss, logits_cat.argmax(1).numpy(), labels_cat.numpy(), logits_cat
 
 
 def fit_temperature(logits, labels):
@@ -271,9 +390,24 @@ def main():
     ap.add_argument("--weight-decay", type=float, default=1e-4)
     ap.add_argument("--dropout", type=float, default=0.3)
     ap.add_argument("--label-smoothing", type=float, default=0.1)
+    ap.add_argument("--mixup", type=float, default=0.2,
+                    help="MixUp alpha (0 disables)")
+    ap.add_argument("--cutmix", type=float, default=1.0,
+                    help="CutMix alpha (0 disables)")
+    ap.add_argument("--ema-decay", type=float, default=0.999,
+                    help="EMA decay (0 disables the averaged copy)")
     ap.add_argument("--size", type=int, default=224)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--patience", type=int, default=5, help="early-stop patience")
+    ap.add_argument(
+        "--init-from",
+        default="",
+        help=(
+            "start from an existing checkpoint's weights instead of ImageNet. "
+            "Used for progressive resizing: train at 224, then fine-tune the "
+            "result at a larger --size for a few epochs."
+        ),
+    )
     ap.add_argument("--out", default="agridoctor_cnn.pt")
     args = ap.parse_args()
 
@@ -314,17 +448,47 @@ def main():
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False, **loader_kw)
 
     model, head, _ = build_model(args.arch, len(classes), args.dropout)
+
+    if args.init_from:
+        init_path = PROJECT_ROOT / args.init_from
+        prior = torch.load(init_path, map_location="cpu", weights_only=False)
+        if prior.get("classes") and list(prior["classes"]) != list(classes):
+            raise SystemExit(
+                f"{init_path} was trained on different classes — refusing to load "
+                "weights whose output layer means something else"
+            )
+        model.load_state_dict(prior["model_state_dict"])
+        log.info(
+            "initialised from %s (macro-F1 %.4f, trained at %dpx) -> now %dpx",
+            init_path.name,
+            float(prior.get("best_macro_f1", 0.0)),
+            int(prior.get("input_size", 0)),
+            args.size,
+        )
+
     model.to(device)
-    criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
+
+    ema = ModelEMA(model, decay=args.ema_decay) if args.ema_decay > 0 else None
+    if ema is not None:
+        ema.ema.to(device)
+    log.info(
+        "regularisation: mixup=%.2f cutmix=%.2f smoothing=%.2f ema=%s",
+        args.mixup, args.cutmix, args.label_smoothing,
+        args.ema_decay if ema else "off",
+    )
 
     history, best = [], {"macro_f1": -1.0, "epoch": -1}
     stale = 0
     optimizer = scheduler = None
     started = time.time()
+    steps_per_epoch = max(1, len(train_loader))
 
     for epoch in range(1, args.epochs + 1):
         # --- stage switch: head-only warmup -> full fine-tune ---
-        if epoch == 1:
+        # `--warmup-epochs 0` skips straight to the full fine-tune, which is what
+        # you want when initialising from an already-trained checkpoint: the head
+        # is not random, so freezing the backbone to protect it buys nothing.
+        if epoch == 1 and args.warmup_epochs > 0:
             log.info("stage 1: head-only warmup (backbone frozen)")
             set_backbone_trainable(model, head, False)
             optimizer = torch.optim.AdamW(
@@ -337,30 +501,52 @@ def main():
             optimizer = torch.optim.AdamW(
                 model.parameters(), lr=args.lr, weight_decay=args.weight_decay
             )
+            # Cosine decay stepped per batch: smoother than per-epoch jumps, and
+            # the schedule no longer depends on how long early stopping lets it run.
+            total_steps = max(1, (args.epochs - args.warmup_epochs) * steps_per_epoch)
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-                optimizer, T_max=max(1, args.epochs - args.warmup_epochs)
+                optimizer, T_max=total_steps
             )
 
-        train_loss, *_ = run_epoch(model, train_loader, device, criterion, optimizer)
-        val_loss, val_preds, val_labels, val_logits = run_epoch(
-            model, val_loader, device, criterion
+        train_loss = train_epoch(
+            model, train_loader, device, optimizer, scheduler,
+            len(classes), args, ema,
         )
-        if scheduler is not None:
-            scheduler.step()
 
+        # Evaluate the raw weights and the EMA copy; keep whichever is genuinely
+        # better rather than assuming EMA always wins.
+        val_loss, val_preds, val_labels, val_logits = evaluate(
+            model, val_loader, device, len(classes)
+        )
         acc = float(accuracy_score(val_labels, val_preds))
         macro_f1 = float(f1_score(val_labels, val_preds, average="macro"))
+        chosen, chosen_state = "raw", model.state_dict()
+
+        if ema is not None:
+            e_loss, e_preds, e_labels, e_logits = evaluate(
+                ema.module, val_loader, device, len(classes)
+            )
+            e_f1 = float(f1_score(e_labels, e_preds, average="macro"))
+            if e_f1 > macro_f1:
+                chosen, chosen_state = "ema", ema.module.state_dict()
+                val_loss, val_preds, val_labels, val_logits = (
+                    e_loss, e_preds, e_labels, e_logits
+                )
+                acc = float(accuracy_score(e_labels, e_preds))
+                macro_f1 = e_f1
+
         history.append({
             "epoch": epoch,
             "train_loss": round(train_loss, 4),
             "val_loss": round(val_loss, 4),
             "val_accuracy": round(acc, 4),
             "val_macro_f1": round(macro_f1, 4),
+            "weights": chosen,
             "lr": optimizer.param_groups[0]["lr"],
         })
         log.info(
-            "epoch %2d/%d  train_loss=%.4f  val_loss=%.4f  acc=%.4f  macroF1=%.4f",
-            epoch, args.epochs, train_loss, val_loss, acc, macro_f1,
+            "epoch %2d/%d  train_loss=%.4f  val_loss=%.4f  acc=%.4f  macroF1=%.4f  [%s]",
+            epoch, args.epochs, train_loss, val_loss, acc, macro_f1, chosen,
         )
 
         if macro_f1 > best["macro_f1"]:
@@ -368,7 +554,12 @@ def main():
                 "macro_f1": macro_f1,
                 "accuracy": acc,
                 "epoch": epoch,
-                "state_dict": {k: v.detach().cpu().clone() for k, v in model.state_dict().items()},
+                "weights": chosen,
+                # Must snapshot the weights that produced these metrics — which is
+                # the EMA copy whenever EMA won this epoch, not the raw model.
+                "state_dict": {
+                    k: v.detach().cpu().clone() for k, v in chosen_state.items()
+                },
                 "logits": val_logits,
                 "labels": val_labels,
                 "preds": val_preds,
@@ -411,6 +602,7 @@ def main():
             "temperature": temperature,
             "best_epoch": best["epoch"],
             "best_macro_f1": best["macro_f1"],
+            "weights_source": best.get("weights", "raw"),
             "dropout": args.dropout,
         },
         ckpt_path,

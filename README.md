@@ -1,23 +1,26 @@
 # Final-Year-Project-Mohammad-Sarif-Khan-AgriDoctor 🌿
 
 > **An AI-powered assistant that diagnoses crop-leaf diseases from a photo, with
-> optional voice input, and returns treatment advice — for six crops.**
+> optional voice input, and returns treatment advice — running a locally-trained
+> CNN first, and escalating to a hosted vision model only when it needs to.**
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104+-009688)
-![AI](https://img.shields.io/badge/AI-Groq%20Qwen3.6%20Vision-orange)
+![CNN](https://img.shields.io/badge/CNN-EfficientNet--B0%20(local)-success)
+![AI](https://img.shields.io/badge/fallback-Groq%20Qwen3.6%20Vision-orange)
 
 ---
 
 ## ⚡ Quick Start — real AI diagnosis
 
-AgriDoctor performs **genuine image-based diagnosis** using a hosted
-vision–language model on **Groq**. It looks at the actual leaf pixels, identifies
-the crop, **rejects photos that aren't one of the 6 supported crops (or aren't a
-leaf at all)**, fuses in the farmer's voice/text notes, and returns instant,
-structured treatment advice. There are **no hard-coded or mock predictions** —
-every result is generated at run time from the uploaded image.
+AgriDoctor performs **genuine image-based diagnosis** with a locally-trained CNN,
+falling back to a hosted vision–language model for anything the CNN wasn't
+trained on. It looks at the actual leaf pixels, identifies the crop, **rejects
+photos that aren't a supported crop (or aren't a leaf at all)**, fuses in the
+farmer's voice/text notes, and returns structured treatment advice. There are
+**no hard-coded or mock predictions** — every result is generated at run time
+from the uploaded image.
 
 > The full engineering plan lives in **[`docs/implementation/`](docs/implementation/)**.
 
@@ -25,18 +28,19 @@ every result is generated at run time from the uploaded image.
 # 1. Configure secrets (never commit .env)
 cp .env.example .env
 python -c "import secrets; print('SECRET_KEY=' + secrets.token_urlsafe(48))" >> .env
-#   then add your FREE Groq key from https://console.groq.com/keys  ->  GROQ_API_KEY=gsk_...
+#   Optional: add a FREE Groq key (https://console.groq.com/keys) -> GROQ_API_KEY=gsk_...
+#   Only needed for crops the local CNN doesn't cover — see "Two-tier engine" below.
 
 # 2. Install + run the API
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements-ml.txt      # includes torch, needed to run the CNN
 uvicorn backend.main:app --reload --port 8000
 
 # 3. Serve the frontend (separate terminal)
 cd frontend && python3 -m http.server 3000
 #   open http://localhost:3000
 
-# 4. Run the tests (no network / no API key needed — uses a fake provider)
+# 4. Run the tests (no network / no API key / no model weights needed)
 pytest
 ```
 
@@ -46,15 +50,28 @@ Or start both servers at once:
 chmod +x start.sh && ./start.sh     # backend :8000 + frontend :3000
 ```
 
+**Getting the model.** Weights are not committed (they're large and rebuildable).
+Build the corpus and train, then check what the server sees:
+
+```bash
+python scripts/prepare_dataset.py            # downloads + caches ~47k images
+python scripts/train_cnn.py                  # writes data/models/agridoctor_cnn.pt
+python scripts/evaluate_cnn.py               # held-out metrics + confusion matrix
+curl localhost:8000/health                   # reports which engines are live
+```
+
+Without a checkpoint the app still runs — every request simply escalates to the
+hosted model, or returns an honest "not confident" result if no key is set.
+
 **Key endpoint:** `POST /api/analyze` (multipart: `image`, optional `audio`,
 `crop_hint`, `onset_days`, `spread`, `notes`) → returns the full diagnosis in one
 call. Result `kind` is one of: `diagnosis`, `healthy`, `unsupported_crop`,
 `not_a_leaf`, `low_confidence`.
 
-> **Note on the free Groq tier:** the first analysis after startup can take
-> 5–40 seconds, and the free tier allows roughly one image per minute. If you send
-> images faster you'll get a friendly "AI is busy, try again shortly" message —
-> that's the rate limit, not a bug.
+> **On the free Groq tier:** it allows roughly one image per minute. This is why
+> the CNN runs first — a tomato, potato, pepper or maize leaf is answered locally
+> in well under a second and never touches the API, so the rate limit only
+> applies to images that genuinely need escalating.
 
 ---
 
@@ -101,14 +118,33 @@ affected leaf, optionally adds a spoken or typed description of the symptoms, an
 receives a structured diagnosis: the identified crop, the most likely disease, a
 confidence and severity estimate, and an actionable treatment and prevention plan.
 
-The diagnosis engine is a **hosted vision–language model** (`qwen/qwen3.6-27b`,
-served on Groq for low latency), wrapped in a **server-side safety layer** that is
-the core contribution of the project: the model's output is never trusted blindly.
-The server independently enforces that a diagnosis is only produced for a
-**supported crop** with a valid disease label, and converts anything else (a
-non-leaf photo, an unsupported crop, an unusable image) into a polite, honest
-rejection rather than a fabricated result. Optional voice input is transcribed
-with **Whisper** and fused into the analysis.
+The diagnosis engine is a **locally-trained convolutional neural network**
+(EfficientNet-B0, trained by [`scripts/train_cnn.py`](scripts/train_cnn.py)), with
+a **hosted vision–language model** (`qwen/qwen3.6-27b` on Groq) as an escalation
+tier. Both sit behind a **server-side safety layer** that is the core
+contribution of the project: no model output is trusted blindly.
+
+What makes local-first workable is that the CNN is trained with two explicit
+**out-of-scope classes** rather than being forced to pick a disease for every
+image. It therefore returns a routing decision, not just a label:
+
+| CNN decision | Meaning | What happens |
+| ------------ | ------- | ------------ |
+| **diagnosis** | Confident, and a crop it was trained on | Answered locally — no network call |
+| **not a plant** | Confidently not vegetation | Rejected locally — no network call |
+| **escalate** | Another species, or not confident enough | Handed to the hosted vision model |
+
+Escalation is a designed tier, not a failure path. The taxonomy covers eight
+crops and four livestock species, but the public training corpus only contains
+tomato, potato, pepper and maize — rice, chili, cucumber, eggplant and all
+livestock *cannot* be learned locally and are meant to escalate.
+
+The practical effect: the common case (a tomato or potato leaf) costs **no API
+call at all**, which removes the free-tier rate limit from everyday use. Optional
+voice input is transcribed with **Whisper** and fused into the analysis.
+
+Locally-diagnosed results also carry a **Grad-CAM heatmap** showing which pixels
+drove the prediction, so a diagnosis can be inspected rather than taken on trust.
 
 **Design principle:** honesty about capability. When the system does not know, it
 says so — it will refuse a photo of a car instead of diagnosing it.
@@ -132,22 +168,31 @@ says so — it will refuse a photo of a car instead of diagnosing it.
 
 ## 🌾 Supported Crops
 
-AgriDoctor diagnoses **six crops** (see [`data/taxonomy.json`](data/taxonomy.json)
-for the full label set across fungal, bacterial, viral, pest, and nutrient
-categories):
+The taxonomy ([`data/taxonomy.json`](data/taxonomy.json)) defines **eight crops
+and four livestock species** across fungal, bacterial, viral, pest and nutrient
+categories. Which engine answers depends on whether the local CNN was trained on
+that subject — the **Engine** column below is the honest split:
 
-| Crop        | Example conditions detected                                              |
-| ----------- | ----------------------------------------------------------------------- |
-| 🍅 Tomato   | Early Blight, Late Blight, Leaf Mold, Septoria, Spider Mites, Mosaic, Bacterial Spot |
-| 🥔 Potato   | Early Blight, Late Blight, Blackleg, Common Scab, Viral Mosaic, Aphids   |
-| 🌾 Rice     | Blast, Brown Spot, Bacterial Leaf Blight, Tungro, Sheath Blight, Stem Borer |
-| 🌽 Maize    | Northern Leaf Blight, Common Rust, Gray Leaf Spot, Smut, Stem Borer      |
-| 🌶️ Chili    | Anthracnose, Bacterial Wilt, Leaf Curl Virus, Powdery Mildew, Thrips     |
-| 🥒 Cucumber | Powdery Mildew, Downy Mildew, Angular Leaf Spot, Mosaic Virus, Anthracnose, Aphids |
+| Subject      | Example conditions detected                                              | Engine |
+| ------------ | ------------------------------------------------------------------------ | ------ |
+| 🍅 Tomato    | Early Blight, Late Blight, Leaf Mold, Septoria, Spider Mites, Mosaic, Bacterial Spot, Target Spot, Yellow Leaf Curl | 🧠 Local CNN |
+| 🥔 Potato    | Early Blight, Late Blight, Blackleg, Common Scab, Viral Mosaic, Aphids    | 🧠 Local CNN |
+| 🫑 Pepper    | Bacterial Spot, Phytophthora, Anthracnose, Mosaic, Powdery Mildew         | 🧠 Local CNN |
+| 🌽 Maize     | Northern Leaf Blight, Common Rust, Gray Leaf Spot, Smut, Stem Borer       | 🧠 Local CNN |
+| 🌾 Rice      | Blast, Brown Spot, Bacterial Leaf Blight, Tungro, Sheath Blight, Stem Borer | ☁️ Escalates |
+| 🌶️ Chili     | Anthracnose, Bacterial Wilt, Leaf Curl Virus, Powdery Mildew, Thrips      | ☁️ Escalates |
+| 🥒 Cucumber  | Powdery Mildew, Downy Mildew, Angular Leaf Spot, Mosaic Virus, Anthracnose | ☁️ Escalates |
+| 🍆 Eggplant  | Verticillium Wilt, Fruit Rot, Leaf Spot, Flea Beetle, Mites               | ☁️ Escalates |
+| 🐄 Cattle · 🐐 Goat · 🐑 Sheep · 🐔 Poultry | Visible skin/eye/foot conditions (FMD, LSD, mange, orf, footrot, pinkeye…) | ☁️ Escalates |
 
-> **Not supported (yet):** livestock diagnosis and other crops. These are listed
-> as future work only — the application does not claim to diagnose them, and it
-> explicitly rejects unsupported crops rather than guessing.
+The split isn't a design preference — it's a **data** constraint. The public
+PlantVillage corpus only contains tomato, potato, pepper and maize, so those four
+are the only subjects a local model can be trained on from freely available data.
+Everything else escalates to the hosted vision model, and if no API key is
+configured those requests return an honest "not confident" rather than a guess.
+
+> **Not supported at all:** any other crop or animal. The system rejects these
+> rather than guessing — a grape leaf is refused, not relabelled as tomato.
 
 ---
 
@@ -172,8 +217,9 @@ The serving API is deliberately lightweight and does **not** require PyTorch.
   on 17 PlantVillage-derived classes across Tomato/Potato/Pepper/Maize, reaching
   **99.3% held-out accuracy** (see `data/models/metrics.json`; note the plain-background
   caveat). The **multimodal ViT + DistilBERT fusion** model is also implemented but
-  **not trained** (no image+text dataset). None of these are the default serving
-  engine — the hosted VLM is. See the training section below.
+  **not trained** on real farmer text (no image+text dataset). These were the
+  earlier experiments; the current serving engine is the EfficientNet-B0 CNN from
+  `scripts/train_cnn.py`. See the training section below.
 
 ---
 
@@ -192,19 +238,30 @@ The serving API is deliberately lightweight and does **not** require PyTorch.
 │   • rate limiting • persistence                                        │
 └──────────────────────────────────────────────────────────────────────┘
                                   │
-             ┌────────────────────┴───────────────────┐
-             ▼                                         ▼
-┌──────────────────────────┐              ┌───────────────────────────┐
-│  Whisper (voice → text)  │              │  Vision–Language model     │
-│  transcript fused into   │─────────────▶│  Groq · qwen/qwen3.6-27b   │
-│  the analysis context    │              │  → strict JSON diagnosis   │
-└──────────────────────────┘              └───────────────────────────┘
-                                                        │
-                                                        ▼
+                                  ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│              TIER 1 — LOCAL CNN  (backend/ai/cnn_predictor.py)         │
+│   EfficientNet-B0 · 21 classes = 19 in-scope + 2 out-of-scope          │
+│   Calibrated confidence (temperature-scaled) → routing decision        │
+└──────────────────────────────────────────────────────────────────────┘
+         │                        │                         │
+   confident,               confidently                other species /
+   in-scope                 not a plant                low confidence
+         │                        │                         │
+         ▼                        ▼                         ▼
+┌──────────────────┐   ┌──────────────────┐   ┌───────────────────────────┐
+│ Offline advice   │   │ Reject locally   │   │ TIER 2 — hosted VLM        │
+│ + Grad-CAM       │   │                  │   │ Groq · qwen/qwen3.6-27b    │
+│ NO API CALL      │   │ NO API CALL      │   │ (+ Whisper for voice)      │
+└──────────────────┘   └──────────────────┘   └───────────────────────────┘
+         │                        │                         │
+         └────────────────────────┴─────────────────────────┘
+                                  ▼
 ┌──────────────────────────────────────────────────────────────────────┐
 │               SERVER-SIDE SAFETY-INVARIANT LAYER                       │
-│   • crop must be one of the 6 supported crops                          │
-│   • label must exist in the taxonomy                                   │
+│   Every path exits through here — local and hosted alike.              │
+│   • subject must be a supported crop or animal                         │
+│   • label must exist in the taxonomy AND belong to that subject        │
 │   • non-leaf / unsupported / unusable → polite rejection (no diagnosis)│
 │   • confidence & severity clamped; hallucinations stripped            │
 └──────────────────────────────────────────────────────────────────────┘
@@ -215,10 +272,11 @@ The serving API is deliberately lightweight and does **not** require PyTorch.
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-> An optional local-CNN path (`backend/ai/cnn_predictor.py`) is wired in so that
-> *if* a trained checkpoint were provided it would run first and fall back to the
-> hosted model. No checkpoint is shipped, so this path is inactive and the hosted
-> model handles every request.
+> Two independent safety mechanisms operate here, and they are deliberately not
+> the same thing. The CNN's reject classes let the *model* decline an image it
+> shouldn't answer; the invariant layer is a deterministic server-side check that
+> catches anything either model gets wrong regardless. Removing either one would
+> leave a gap the other does not cover.
 
 ---
 
@@ -305,7 +363,9 @@ AgriDoctor/
 │   │   ├── prompts.py          # constrained system/user prompts
 │   │   ├── schemas.py          # AnalysisResult contract
 │   │   ├── taxonomy.py         # supported crops + labels (from data/taxonomy.json)
-│   │   └── cnn_predictor.py    # optional local-CNN path (inactive without weights)
+│   │   ├── cnn_predictor.py    # PRIMARY engine: local CNN + routing decision
+│   │   ├── local_advice.py     # curated offline treatment advice (no LLM call)
+│   │   └── gradcam.py          # Grad-CAM heatmaps for local diagnoses
 │   ├── routers/                # analyze, auth, cases, media
 │   └── services/               # analysis pipeline, upload validation, NLU hints
 │
@@ -356,25 +416,55 @@ curl -X POST "http://localhost:8000/api/analyze" \
 
 ---
 
-## 🧠 Model Training (optional — not the default serving engine)
+## 🧠 Model Training (the primary serving engine)
 
-The deployed engine is the hosted vision–language model. Separately, the repo
-includes a **real, reproducible training run** for an optional local classifier:
+The local CNN is what answers most requests. It is trained end to end from public
+data with two reproducible scripts:
 
 ```bash
-# Train a compact classifier on a public PlantVillage-derived dataset
-# (auto-downloads via HuggingFace; runs on Apple-Silicon MPS / CPU / CUDA)
-.venv/bin/python scripts/train_real.py --per-class 300 --epochs 8
+# 1. Build the corpus: ~47k images, 21 classes, stratified train/val/test
+#    (auto-downloads via HuggingFace and caches resized JPEGs to disk)
+.venv/bin/python scripts/prepare_dataset.py
+
+# 2. Train (Apple-Silicon MPS / CUDA / CPU)
+.venv/bin/python scripts/train_cnn.py
+
+# 3. Evaluate on the held-out test split
+.venv/bin/python scripts/evaluate_cnn.py
 ```
 
-**Measured result:** MobileNetV3-small over 17 classes across Tomato/Potato/Pepper/
-Maize (4,080 train / 1,020 val) → **99.3% validation accuracy, 0.9931 macro-F1**
-(`data/models/metrics.json`). ⚠️ *Honest caveat:* PlantVillage images have plain
-backgrounds, so this is **not** field accuracy — messy real-world photos would score
-much lower. This is a genuine pipeline demonstration, not a claim that it beats the
-VLM. Once trained, `data/models/best_model.pt` is used as an optional local fast-path
-(config `USE_LOCAL_CNN`) for the crop classes it covers, with the hosted model as
-fallback.
+**The corpus.** 19 in-scope disease/healthy classes across tomato, potato, pepper
+and maize, plus the two reject classes that make local-first safe:
+
+| Class group | Source | Purpose |
+| ----------- | ------ | ------- |
+| 19 in-scope labels | `minhhungg/plant-disease-dataset` | The diseases actually diagnosed |
+| `OOS_OTHER_PLANT` | The same dataset's other 19 species (apple, grape, orange, soybean…) | Real leaves of crops we don't cover → escalate |
+| `OOS_NOT_PLANT` | `zh-plus/tiny-imagenet` | Non-vegetation photos → reject locally |
+
+The reject classes are the whole reason the CNN can be trusted as the primary
+engine. A plain 19-way softmax has no way to say "this is a car" — it must assign
+*some* crop disease to every image. That is why the earlier version of this
+project kept the CNN switched off.
+
+**The training recipe** goes beyond a plain fine-tune, specifically to fight the
+PlantVillage weakness described below:
+
+- Two-stage schedule — head-only warmup, then full fine-tune on per-batch cosine decay
+- MixUp + CutMix, so the network can't bet everything on one dominant cue (the background)
+- Resolution jitter on *every* class, so "low-res" can't become a shortcut for the reject class
+- Class-balanced sampling, label smoothing, RandAugment, random erasing
+- EMA weights, evaluated against the raw weights each epoch — whichever genuinely scores higher is saved
+- Temperature scaling fitted on validation, so the confidence the router thresholds is calibrated rather than the usual overconfident softmax
+
+⚠️ **The honest caveat, unchanged:** PlantVillage images are shot on plain
+backgrounds under even lighting. High validation accuracy on this data overstates
+field performance — this is the well-documented domain-shift problem, and no
+architecture change fixes it. `scripts/evaluate_cnn.py` therefore also runs an
+8-corruption robustness suite (blur, noise, occlusion, low resolution, …) and
+reports the clean-vs-corrupted gap explicitly, because that gap is the honest
+measure of what happens on a real phone photo in a field. It is also precisely
+why the hosted model is retained as the escalation tier.
 
 ### Multimodal fusion ablation (real)
 
@@ -399,9 +489,9 @@ python src/models/train_multimodal.py \
 streamlit run tools/annotator_app.py
 ```
 
-If a checkpoint is produced at `data/models/best_model.pt` and `USE_LOCAL_CNN=True`,
-the serving analyzer will use it first and fall back to the hosted model on low
-confidence.
+Both of the above are earlier offline experiments, kept for the record. The model
+the server actually loads is `data/models/agridoctor_cnn.pt` from
+`scripts/train_cnn.py` — see the training section above.
 
 ---
 
@@ -412,18 +502,27 @@ Set via a `.env` file in the project root (never commit it — it's gitignored).
 | Variable | Default | Description |
 | --- | --- | --- |
 | `SECRET_KEY` | *(required)* | JWT signing secret (app refuses to start without it) |
-| `GROQ_API_KEY` | *(required)* | Free key from console.groq.com |
+| `USE_LOCAL_CNN` | `True` | Run the local CNN first. If no checkpoint exists it reports unavailable and everything escalates |
+| `CNN_MODEL_PATH` | `data/models/agridoctor_cnn.pt` | Trained checkpoint from `scripts/train_cnn.py` |
+| `CNN_CONFIDENCE_THRESHOLD` | `0.75` | **Calibrated** confidence needed to answer locally. Raise it to escalate more borderline cases; lower it to answer more offline |
+| `CNN_MARGIN_THRESHOLD` | `0.10` | Minimum top-1 vs top-2 gap. Catches near-ties that a confidence bar alone misses |
+| `CNN_REJECT_THRESHOLD` | `0.60` | Confidence needed to reject an image locally as "not a plant" |
+| `CNN_USE_TTA` | `True` | Average over the image and its mirror (~2x inference, still well under 100ms) |
+| `ENABLE_GRADCAM` | `True` | Attach a Grad-CAM heatmap to locally-diagnosed results |
+| `GROQ_API_KEY` | *(optional)* | Free key from console.groq.com. Only used for escalated images; blank runs fully offline |
 | `GROQ_VISION_MODEL` | `qwen/qwen3.6-27b` | Groq vision model (auto-resolves to an available one if this ID is retired) |
-| `GROQ_AUDIO_MODEL` | `whisper-large-v3-turbo` | Groq ASR model |
-| `GROQ_TEXT_MODEL` | `llama-3.3-70b-versatile` | Text model for advice on the local-CNN path |
+| `GROQ_AUDIO_MODEL` | `whisper-large-v3-turbo` | Groq ASR model for voice notes |
+| `GROQ_TEXT_MODEL` | `llama-3.3-70b-versatile` | Text model (hosted path only — local diagnoses use the offline advice base) |
 | `AI_TIMEOUT_SECONDS` | `30` | Timeout for AI calls |
 | `AI_MAX_RETRIES` | `2` | Retries (also used for rate-limit backoff) |
-| `USE_LOCAL_CNN` | `True` | Enable the optional local-CNN path (inactive unless a checkpoint exists) |
-| `CNN_MODEL_PATH` | `data/models/best_model.pt` | Path to a trained checkpoint, if any |
-| `CNN_CONFIDENCE_THRESHOLD` | `0.80` | Confidence needed to skip the hosted vision call |
 | `ALLOWED_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | CORS allow-list |
 | `LOG_LEVEL` | `INFO` | Logging level |
 
+> The two CNN thresholds encode a deliberate trade-off: a higher bar means fewer
+> wrong local answers but more escalations (and more API calls). `scripts/evaluate_cnn.py`
+> emits a threshold sweep measuring exactly that curve on held-out data, so the
+> shipped value is an evidenced choice rather than a guess.
+>
 > The vision model default is chosen to match Groq's currently available models.
 > Groq periodically retires model IDs; the provider **auto-resolves** a working
 > vision model from a fallback list against your account's live model list, so a

@@ -25,6 +25,7 @@ import argparse
 import json
 import logging
 import time
+from functools import partial
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -36,6 +37,102 @@ MODELS_DIR = PROJECT_ROOT / "data" / "models"
 OOS_OTHER_PLANT = "OOS_OTHER_PLANT"
 OOS_NOT_PLANT = "OOS_NOT_PLANT"
 REJECT_CLASSES = {OOS_OTHER_PLANT, OOS_NOT_PLANT}
+
+
+# --------------------------------------------------------------------------- #
+# Corruption suite
+#
+# PlantVillage images are studio-clean, so clean-test accuracy overstates field
+# performance — the well-documented weakness of every model trained on it, and
+# the one the project report already flags. These corruptions approximate what a
+# phone camera in a field actually produces, and the gap between clean and
+# corrupted accuracy is an honest measure of that generalisation gap.
+# --------------------------------------------------------------------------- #
+def _blur(img, radius=2.0):
+    from PIL import ImageFilter
+
+    return img.filter(ImageFilter.GaussianBlur(radius))
+
+
+def _noise(img, sigma=0.06):
+    import numpy as np
+    from PIL import Image
+
+    arr = np.asarray(img).astype(np.float32) / 255.0
+    rng = np.random.default_rng(0)  # fixed so the benchmark is reproducible
+    arr = np.clip(arr + rng.normal(0, sigma, arr.shape), 0, 1)
+    return Image.fromarray((arr * 255).astype("uint8"))
+
+
+def _brightness(img, factor):
+    from PIL import ImageEnhance
+
+    return ImageEnhance.Brightness(img).enhance(factor)
+
+
+def _jpeg(img, quality=25):
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, "JPEG", quality=quality)
+    buf.seek(0)
+    return Image.open(buf).convert("RGB")
+
+
+def _occlude(img, frac=0.25):
+    """Black box over part of the leaf — a finger, shadow, or another leaf."""
+    from PIL import ImageDraw
+
+    img = img.copy()
+    w, h = img.size
+    bw, bh = int(w * frac), int(h * frac)
+    ImageDraw.Draw(img).rectangle(
+        [(w - bw) // 2, (h - bh) // 2, (w + bw) // 2, (h + bh) // 2], fill=(0, 0, 0)
+    )
+    return img
+
+
+def _lowres(img, scale=0.25):
+    from PIL import Image
+
+    w, h = img.size
+    small = img.resize((max(8, int(w * scale)), max(8, int(h * scale))), Image.BILINEAR)
+    return small.resize((w, h), Image.BILINEAR)
+
+
+# functools.partial rather than lambdas: DataLoader workers pickle the dataset,
+# and a lambda defined at module scope cannot be pickled.
+CORRUPTIONS = {
+    "blur": partial(_blur, radius=2.0),
+    "heavy_blur": partial(_blur, radius=4.0),
+    "noise": partial(_noise, sigma=0.06),
+    "dark": partial(_brightness, factor=0.5),
+    "bright": partial(_brightness, factor=1.6),
+    "jpeg_artifacts": partial(_jpeg, quality=25),
+    "occlusion": partial(_occlude, frac=0.25),
+    "low_resolution": partial(_lowres, scale=0.25),
+}
+
+
+class CorruptedDataset:
+    """Wraps an ImageFolder, applying a corruption before the eval transform."""
+
+    def __init__(self, samples, corruption, transform):
+        self.samples = samples
+        self.corruption = corruption
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, i):
+        from PIL import Image
+
+        path, label = self.samples[i]
+        img = Image.open(path).convert("RGB")
+        return self.transform(self.corruption(img)), label
 
 
 def plot_confusion(cm, classes, path: Path):
@@ -82,6 +179,8 @@ def main():
     ap.add_argument("--batch-size", type=int, default=32)
     ap.add_argument("--workers", type=int, default=4)
     ap.add_argument("--latency-samples", type=int, default=30)
+    ap.add_argument("--skip-robustness", action="store_true",
+                    help="skip the corruption suite (it re-runs the test set 8x)")
     ap.add_argument("--out", default="eval_report.json")
     args = ap.parse_args()
 
@@ -206,6 +305,58 @@ def main():
     log.info("safety gate: false-accept rate on out-of-scope = %s",
              safety["false_accept_rate"])
 
+    # --- 3b. OOD detection quality (threshold-free) ---------------------------
+    # AUROC over the reject-class probability mass answers "can the model
+    # separate in-scope from out-of-scope at all", independent of where the
+    # threshold happens to sit. A weak AUROC means no threshold choice will save
+    # the safety gate; a strong one means the gate is just a tuning question.
+    from sklearn.metrics import roc_auc_score
+
+    reject_mass = probs[:, sorted(reject_idx)].sum(axis=1) if reject_idx else None
+    ood_metrics = {}
+    if reject_mass is not None and 0 < oos_mask.sum() < len(oos_mask):
+        ood_metrics["auroc_oos_vs_in_scope"] = round(
+            float(roc_auc_score(oos_mask.astype(int), reject_mass)), 4
+        )
+        # Split the two reject types: "not a plant" should be far easier to spot
+        # than "a leaf of a crop I don't know", and reporting one number hides that.
+        for name, cls in ((("not_plant"), OOS_NOT_PLANT), ("other_plant", OOS_OTHER_PLANT)):
+            if cls not in idx_of:
+                continue
+            m = labels == idx_of[cls]
+            in_scope_m = ~oos_mask
+            sel = m | in_scope_m
+            if m.sum():
+                ood_metrics[f"auroc_{name}_vs_in_scope"] = round(
+                    float(roc_auc_score(m[sel].astype(int), reject_mass[sel])), 4
+                )
+    log.info("OOD detection: %s", ood_metrics)
+
+    # --- 3c. Threshold sweep --------------------------------------------------
+    # The operating point is a real trade-off: a higher bar means fewer wrong
+    # local answers but more escalations (and more API calls). This table is the
+    # evidence for whichever threshold ships.
+    sweep = []
+    for t in [0.50, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]:
+        answered = (
+            np.isin(preds, list(in_scope_idx)) & (conf >= t) & (margins >= margin_thr)
+        )
+        in_answered = answered & ~oos_mask
+        sweep.append({
+            "threshold": t,
+            # Share of in-scope images answered locally (no API call).
+            "coverage_in_scope": round(float(answered[~oos_mask].mean()), 4)
+            if (~oos_mask).sum() else None,
+            # Accuracy among those answered locally — what the farmer actually sees.
+            "accuracy_when_answered": round(
+                float((preds[in_answered] == labels[in_answered]).mean()), 4
+            ) if in_answered.sum() else None,
+            # Out-of-scope images wrongly given a confident diagnosis.
+            "false_accept_rate": round(float(answered[oos_mask].mean()), 4)
+            if oos_mask.sum() else None,
+        })
+    log.info("threshold sweep computed for %d operating points", len(sweep))
+
     # --- 4. Routing mix -------------------------------------------------------
     routing = {DECISION_DIAGNOSIS: 0, DECISION_NOT_PLANT: 0, DECISION_ESCALATE: 0}
     for i in range(len(preds)):
@@ -216,6 +367,57 @@ def main():
     total = max(len(preds), 1)
     routing_pct = {k: round(v / total, 4) for k, v in routing.items()}
     log.info("routing: %s", routing_pct)
+
+    # --- 5. Robustness to field-like corruptions ------------------------------
+    robustness = {}
+    if not args.skip_robustness:
+        in_scope_names = [c for c in classes if c not in REJECT_CLASSES]
+        log.info("running corruption suite (%d corruptions)...", len(CORRUPTIONS))
+        for name, fn in CORRUPTIONS.items():
+            c_ds = CorruptedDataset(ds.samples, fn, eval_tf)
+            c_loader = DataLoader(c_ds, batch_size=args.batch_size, shuffle=False,
+                                  num_workers=args.workers)
+            c_logits, c_labels = [], []
+            with torch.no_grad():
+                for images, lbls in c_loader:
+                    c_logits.append(model(images.to(device)).cpu())
+                    c_labels.append(lbls)
+            c_probs = torch.softmax(torch.cat(c_logits) / temperature, dim=1).numpy()
+            c_labels = torch.cat(c_labels).numpy()
+            c_preds = c_probs.argmax(axis=1)
+            c_acc = float(accuracy_score(c_labels, c_preds))
+            c_f1 = float(f1_score(c_labels, c_preds, average="macro"))
+            # Also track whether corruption pushes out-of-scope images into a
+            # confident diagnosis — degradation that breaks the safety gate is
+            # worse than degradation that merely loses accuracy.
+            c_margins = np.sort(c_probs, axis=1)[:, -1] - np.sort(c_probs, axis=1)[:, -2]
+            c_answered = (
+                np.isin(c_preds, list(in_scope_idx))
+                & (c_probs.max(axis=1) >= thr)
+                & (c_margins >= margin_thr)
+            )
+            robustness[name] = {
+                "accuracy": round(c_acc, 4),
+                "macro_f1": round(c_f1, 4),
+                "accuracy_drop": round(acc - c_acc, 4),
+                "false_accept_rate": round(float(c_answered[oos_mask].mean()), 4)
+                if oos_mask.sum() else None,
+            }
+            log.info("  %-16s acc=%.4f (drop %.4f)  macroF1=%.4f",
+                     name, c_acc, acc - c_acc, c_f1)
+        if robustness:
+            worst = min(robustness.items(), key=lambda kv: kv[1]["accuracy"])
+            robustness["_summary"] = {
+                "clean_accuracy": round(acc, 4),
+                "mean_corrupted_accuracy": round(
+                    float(np.mean([v["accuracy"] for k, v in robustness.items()
+                                   if not k.startswith("_")])), 4
+                ),
+                "worst_corruption": worst[0],
+                "worst_accuracy": worst[1]["accuracy"],
+                "in_scope_classes": len(in_scope_names),
+            }
+            log.info("robustness summary: %s", robustness["_summary"])
 
     # --- Latency --------------------------------------------------------------
     sample_paths = [p for p, _ in ds.samples[: args.latency_samples]]
@@ -249,7 +451,10 @@ def main():
         "macro_f1": round(macro_f1, 4),
         "calibration": {"temperature": round(temperature, 4), "ece": round(ece, 4)},
         "safety_gate": safety,
+        "ood_detection": ood_metrics,
+        "threshold_sweep": sweep,
         "routing_mix": routing_pct,
+        "robustness": robustness,
         "latency": latency,
         "per_class": {
             c: {
