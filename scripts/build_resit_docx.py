@@ -261,26 +261,26 @@ def create_document():
 
     add_heading_2("3.2 End-to-End Processing Mechanism & Flow Diagram")
     add_paragraph(
-        "When a farmer submits a diagnosis request, the data travels through the following pipeline:"
+        "When a farmer submits a diagnosis request, the data travels through a highly optimized dual-stage hybrid routing pipeline. The system coordinates local edge-inference models and hosted cloud APIs to achieve zero-latency results for common crops, while preserving broad multi-modal diagnostic reasoning for advanced or rare cases:"
     )
-    add_paragraph("The farmer uploads a leaf image and optionally records a voice note. The PWA packages the binary payloads into a multipart/form-data request and sends it via POST to the backend.", bold_prefix="1. Request Submission: ")
-    add_paragraph("The backend validates the uploaded image. The file's byte signature is inspected, and Pillow attempts to re-decode the image to filter out malformed files or potential security exploits.", bold_prefix="2. Binary Validation: ")
-    add_paragraph("If an audio file is present, the raw WebM stream is sent to the Groq-hosted Whisper API (whisper-large-v3-turbo) for automatic speech transcription.", bold_prefix="3. Speech Transcription (ASR): ")
-    add_paragraph("The image, the speech transcript, and user notes are assembled into a constrained system prompt. The prompt forces the VLM (qwen/qwen3.6-27b served on Groq) to reason strictly from visible characteristics and return a structured JSON response. Reasoning output is suppressed (reasoning_effort=\"none\") to guarantee low latency.", bold_prefix="4. Prompt Assembly & VLM Inference: ")
-    add_paragraph("The raw JSON output is passed to the safety-invariant layer, which validates the taxonomy mappings.", bold_prefix="5. Invariant Checks: ")
-    add_paragraph("If the user is logged in, the metadata is saved to the SQLite database. The sanitized JSON object is returned to the client and rendered dynamically on the UI.", bold_prefix="6. DB Writing & Client Response: ")
+    add_paragraph("The farmer captures/uploads a leaf or skin image and optionally records a voice note. The PWA client packages these binary payloads along with metadata (user selection, onset days, spread notes) into a standard multipart/form-data request, transmitting it via an encrypted HTTPS POST call to the backend API.", bold_prefix="1. Request Submission (Client): ")
+    add_paragraph("The FastAPI server validates the file upload headers and byte structures. Python's Pillow library re-decodes and re-saves the image. This sanitizes the file against potential steganographic malware or exploit vectors before any model inference begins.", bold_prefix="2. Input Verification & Sanitization (Backend): ")
+    add_paragraph("If a WebM audio stream is attached, it is routed to the Whisper-large-v3-turbo model. Whisper is a state-of-the-art automatic speech recognition (ASR) system based on an encoder-decoder Transformer architecture. It processes the raw audio waveform, outputs textual symptom transcripts ('dark spots on leaves', 'spreading fast'), and fuses this text context into the analysis payload.", bold_prefix="3. Asynchronous Speech Recognition & Transcription (ASR): ")
+    add_paragraph("The sanitized image and the text notes/ASR transcripts are combined into a system prompt. The system queries Qwen3.6-27B (or a fallback like meta-llama/llama-4-scout-17b). This open-weights vision-language model is hosted on Groq's LPU (Language Processing Unit) architecture. LPUs use a static scheduling chip configuration that avoids typical GPU memory-bus bottlenecks, allowing the VLM to return structured JSON responses within milliseconds. We suppress reasoning tokens (reasoning_effort=\"none\") to avoid extra latency.", bold_prefix="4. Prompt Engineering & Vision-Language Model (VLM) Inference: ")
+    add_paragraph("The VLM's raw output is never returned directly to the client. The backend passes it to a deterministic validation function. The server checks the detected subject and disease label against a strict local taxonomy, maps healthy states, clamps numeric fields (confidence, severity), and translates advice strings into the user's chosen language.", bold_prefix="5. Invariant Safety Layer Gating (Server-side): ")
+    add_paragraph("The validated, formatted JSON payload (consisting of the diagnosis, confidence, severity, and structured cultural, organic, and prevention steps) is returned to the frontend. The JavaScript rendering engine builds the dynamic result card and injects the advice safely into the DOM.", bold_prefix="6. UI Rendering & Advice Delivery (Client): ")
 
     add_heading_2("3.3 Asynchronous API Verification & Image Spoofing Countermeasures")
     add_paragraph(
-        "To prevent service misuse and coordinate API limits, the FastAPI backend applies defensive measures:"
+        "To protect the system from denial-of-service attempts and model manipulation, the backend implements security and rate-limiting patterns:"
     )
     add_paragraph(
-        "Rather than trusting the user-provided MIME type or file extension (e.g., .jpg), the backend reads the image bytes into a file stream and passes it to Pillow's Image.open(). Pillow reads the internal image headers, verifies the format, and re-saves it. This step strips hidden executable payloads and rejects spoofed files.",
-        bold_prefix="* PIL Image Re-decoding: "
+        "To prevent buffer-overflow exploits or hidden shellcodes embedded inside image metadata, the Pillow library strips all EXIF tags and re-saves the pixel buffers. If the re-decoding fails, the request is terminated immediately with an HTTP 400 Bad Request.",
+        bold_prefix="* Metadata Stripping & Re-decoding: "
     )
     add_paragraph(
-        "An in-memory token bucket rate limiter tracks requests per IP. If the hosted API tier throws a 429 rate limit exception, the backend catches it and returns a clean 503 Service Unavailable message ('AI service is busy, please wait 30 seconds') rather than crashing or returning a generic server error.",
-        bold_prefix="* Rate Limiting: "
+        "Groq's hosted vision APIs operate on rate limits. To protect the user experience from transient limits (HTTP 429), the GroqProvider class implements an exponential backoff retry mechanism (using custom parsing of the 'retry-after' header). If the API limits are fully exhausted, the backend catches the error and returns a friendly 503 service message rather than failing with a raw stack trace.",
+        bold_prefix="* Rate Limit Backoff & Catching: "
     )
 
     add_heading_2("3.4 The Safety-Invariant Gating Layer: Logical & Mathematical Formulation")

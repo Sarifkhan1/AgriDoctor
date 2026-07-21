@@ -24,10 +24,14 @@ TABLE OF CONTENTS
    3.2 End-to-End Processing Mechanism & Flow Diagram
    3.3 Asynchronous API Verification & Image Spoofing Countermeasures
    3.4 The Safety-Invariant Gating Layer: Logical & Mathematical Formulation
-4. EMPIRICAL MACHINE LEARNING EXPERIMENTS & PROTOTYPES
-   4.1 Experiment A: Fine-Tuning a MobileNetV3 Crop-Leaf Classifier
-   4.2 Experiment B: Multimodal Fusion Ablation Study (ViT & DistilBERT)
-   4.3 Custom Data Annotation Infrastructure (Streamlit Framework)
+4. THE DEPLOYED CLASSIFIER: DESIGN, TRAINING & EVALUATION
+   4.1 Out-of-Scope Class Design: Making Rejection Learnable
+   4.2 Corpus Construction & Training Methodology
+   4.3 Held-Out Evaluation: Accuracy, Calibration, OOD Detection & Robustness
+   4.4 Explainability via Grad-CAM
+   4.5 Prior Experiment A: Fine-Tuning a MobileNetV3 Crop-Leaf Classifier
+   4.6 Prior Experiment B: Multimodal Fusion Ablation Study (ViT & DistilBERT)
+   4.7 Custom Data Annotation Infrastructure (Streamlit Framework)
 5. SYSTEM VALIDATION, USER TESTING, & DEMO CASES
    5.1 Scenario 1: Target Crop Leaf Pathology (Concentric Tomato Blight)
    5.2 Scenario 2: Target Crop Healthy State (Healthy Potato Leaf)
@@ -42,11 +46,13 @@ TABLE OF CONTENTS
 ================================================================================
 AgriDoctor AI is an interactive, full-stack, mobile-first web application designed to act as a first-opinion diagnostic assistant for smallholder farmers dealing with crop pathologies and visible livestock health anomalies. The system allows farmers to capture leaf or animal skin images, supply optional vocal descriptions of symptoms, and receive immediate, structured botanical or veterinary recommendations. 
 
-Traditional deep neural network classifiers suffer from severe out-of-distribution generalizability issues when deployed in complex field environments. Conversely, unconstrained Vision-Language Models (VLMs) suffer from visual hallucinations, frequently mapping irrelevant noise to confident, incorrect agricultural advice. 
+Traditional deep neural network classifiers suffer from severe out-of-distribution generalizability issues when deployed in complex field environments, and - more fundamentally - cannot decline: a conventional N-way classifier must assign one of its known labels to every input it is shown, including inputs that are not leaves at all. Conversely, unconstrained Vision-Language Models (VLMs) suffer from visual hallucinations, frequently mapping irrelevant noise to confident, incorrect agricultural advice, and in a hosted deployment they impose a per-request network dependency and rate limit that sit awkwardly with rural, intermittent connectivity.
 
-To bridge this gap, AgriDoctor implements a server-side safety-invariant layer that evaluates VLM responses against a rigid taxonomy, converting out-of-scope or low-confidence outputs into polite rejections. 
+AgriDoctor addresses both failure modes with a two-tier engine behind a single deterministic safety layer. The primary tier is a locally trained EfficientNet-B0 classifier, trained not only on in-scope crop diseases but on two explicit out-of-scope classes - other plant species, and non-vegetation imagery - so that declining to answer is a first-class, learned outcome rather than a threshold applied after the fact. The classifier emits a routing decision: confident in-scope predictions are answered entirely offline with curated advice and a Grad-CAM explanation; confident non-plant inputs are rejected offline; everything else escalates to the hosted VLM. Escalation is a designed capability, since the project taxonomy spans eight crops and four livestock species while freely available training imagery exists for only four crops. Both tiers then pass through a server-side safety-invariant layer that validates every result against a rigid taxonomy, converting out-of-scope or low-confidence outputs into polite rejections.
 
-This portfolio documents the full research, development, and validation process of AgriDoctor. It details two local machine learning pipelines (a MobileNetV3 classifier achieving a 99.31% validation F1-score on clinical datasets, and a ViT+DistilBERT cross-modal attention fusion prototype showing an 8.3-point macro-F1 gain via speech integration). Finally, it outlines the production deployment of the safety-gated system on a secure VPS server at https://agridoctor.cloud.
+The practical result is that the common case is diagnosed locally in well under a second with no API call, confining the hosted model's rate limit to requests that genuinely require it, while the system retains an honest account of what it does not know.
+
+This portfolio documents the full research, development, and validation process of AgriDoctor: the deployed local classifier and its out-of-scope rejection design, its held-out evaluation including calibration, out-of-distribution detection and robustness to field-like image corruption, and two earlier offline experiments (a MobileNetV3 classifier reaching a 99.31% validation F1-score on clinical-condition imagery, and a ViT+DistilBERT cross-modal attention fusion prototype showing an 8.3-point macro-F1 gain via simulated speech integration). Finally, it outlines the production deployment of the safety-gated system on a secure VPS server at https://agridoctor.cloud.
 
 ================================================================================
 2. DEVELOPMENT PROCESS & RESEARCH METHODOLOGY (FMP PART 1)
@@ -83,11 +89,21 @@ To understand where AgriDoctor fits, we conducted a competitive review of existi
   - Strengths: Zero-shot performance on diverse visual data, context synthesis, conversational advice.
   - Limitation/Relevance: No safety constraints. These models will confidently diagnose a disease on an image of a leaf-shaped car or a dog. AgriDoctor wraps these engines in a deterministic server-side safety filter.
 
-2.4 Core Evolution: From Hard-Coded Monolith to Safety-Gated Runtime
-The development of AgriDoctor went through three primary design iterations:
+2.4 Core Evolution: From Hard-Coded Monolith to Local-First Safety-Gated Runtime
+The development of AgriDoctor went through four primary design iterations:
 1. Version 1.0 (Mock Prototype): An early layout that returned static, hard-coded advice based purely on the selected crop button. If the user clicked "Tomato," it returned early blight regardless of the uploaded image. This was an honest limitation that failed to represent real AI.
 2. Version 2.0 (Unconstrained VLM): The backend was rewritten to pipe images to a hosted vision-language model. While this added real inference, testing revealed that the model was overly cooperative: if a user selected "Tomato" but uploaded a picture of a grape leaf, the VLM forced a diagnosis of tomato early blight, exhibiting severe confirmation bias.
-3. Version 3.0 (Safety-Gated Multimodal Framework - Deployed): The current version implements a dual-stage architecture. The frontend crop buttons are used only as hints. The backend VLM is queried without locking the crop type, and the VLM's JSON response is filtered through a deterministic server-side validator. This validator checks the predicted crop and disease label against a strict local taxonomy, rejecting out-of-scope images and correcting hallucinated combinations.
+3. Version 3.0 (Safety-Gated VLM Framework): This version implemented a dual-stage architecture. The frontend crop buttons are used only as hints. The backend VLM is queried without locking the crop type, and the VLM's JSON response is filtered through a deterministic server-side validator. This validator checks the predicted crop and disease label against a strict local taxonomy, rejecting out-of-scope images and correcting hallucinated combinations. Two limitations remained. First, every diagnosis required a network round-trip to a rate-limited free API tier (approximately one image per minute), which is a poor fit for the intended rural, intermittent-connectivity user. Second, the system had no independently trained model of its own; its perception was entirely delegated to a third-party endpoint that can be retired or repriced at any time.
+
+4. Version 4.0 (Local-First Two-Tier Engine - Deployed): The current version makes a locally trained convolutional neural network the primary diagnosis engine, retaining the hosted VLM as an escalation tier. The critical design problem was that a conventional N-way classifier cannot decline: presented with a photograph of a car, a 19-class softmax must still distribute probability across nineteen crop diseases and will report one of them confidently. This is precisely why the local classifier in Version 3.0 was implemented but left disabled - enabling it would have bypassed the safety layer that justified the whole architecture.
+
+   The resolution was to train the network with two explicit out-of-scope classes rather than treating rejection as a post-hoc thresholding problem:
+   - OOS_OTHER_PLANT, populated with real leaf images of the nineteen crop species in the source dataset that AgriDoctor does not support (apple, grape, orange, soybean, and others);
+   - OOS_NOT_PLANT, populated with non-vegetation photographs drawn from a general object-recognition corpus.
+
+   The classifier therefore emits a routing decision rather than an unconditional label. A confident in-scope prediction is answered locally with no network call; a confident non-plant prediction is rejected locally with no network call; anything else - an unfamiliar species, or a prediction that clears neither the calibrated-confidence nor the top-two-margin test - is escalated to the hosted VLM. Escalation is a designed capability rather than a failure path, because the taxonomy deliberately covers eight crops and four livestock species while the public training corpus contains images for only four crops. Rice, chili, cucumber, eggplant and all livestock cannot be learned from freely available data and are therefore routed to the VLM by design.
+
+   The practical consequence is that the common case - a tomato or potato leaf - is diagnosed offline in well under a second and never consumes API quota, so the rate limit applies only to requests that genuinely require the larger model. The deterministic server-side invariant layer from Version 3.0 is retained unchanged and every path, local and hosted alike, still exits through it.
 
 ================================================================================
 3. SYSTEM ARCHITECTURE & TECHNICAL DESCRIPTION (FMP PART 2)
@@ -108,10 +124,14 @@ When a farmer submits a diagnosis request, the data travels through the followin
 
 1. Request Submission: The farmer uploads a leaf image and optionally records a voice note. The PWA packages the binary payloads into a `multipart/form-data` request and sends it via POST to the backend.
 2. Binary Validation: The backend validates the uploaded image. The file's byte signature is inspected, and Pillow attempts to re-decode the image to filter out malformed files or potential security exploits.
-3. Speech Transcription (ASR): If an audio file is present, the raw WebM stream is sent to the Groq-hosted Whisper API (`whisper-large-v3-turbo`) for automatic speech transcription.
-4. Prompt Assembly & VLM Inference: The image, the speech transcript, and user notes are assembled into a constrained system prompt. The prompt forces the VLM (`qwen/qwen3.6-27b` served on Groq) to reason strictly from visible characteristics and return a structured JSON response. Reasoning output is suppressed (`reasoning_effort="none"`) to guarantee low latency.
-5. Invariant Checks: The raw JSON output is passed to the safety-invariant layer, which validates the taxonomy mappings.
-6. DB Writing & Client Response: If the user is logged in, the metadata is saved to the SQLite database. The sanitized JSON object is returned to the client and rendered dynamically on the UI.
+3. Local CNN Inference (Tier 1): The validated image is passed to the locally hosted EfficientNet-B0 classifier (`backend/ai/cnn_predictor.py`). The image is centre-cropped to 224x224, evaluated together with its horizontal mirror (test-time augmentation), and the averaged logits are divided by a temperature constant fitted on the validation split before the softmax. Temperature scaling matters operationally rather than cosmetically: the raw softmax of a fine-tuned CNN is systematically overconfident, and the routing decision below thresholds this value directly. The classifier returns one of three decisions:
+   - diagnosis - the top class is in scope, its calibrated confidence exceeds the configured threshold, and its margin over the runner-up exceeds a second threshold;
+   - not_plant - the top class is OOS_NOT_PLANT with sufficient confidence;
+   - escalate - the top class is OOS_OTHER_PLANT, or neither confidence test is satisfied.
+4. Local Resolution (no network): For a `diagnosis` decision, treatment advice is retrieved from a curated offline knowledge base keyed by taxonomy label (`backend/ai/local_advice.py`) rather than generated by a language model, and a Grad-CAM heatmap is computed showing which pixels drove the prediction. For a `not_plant` decision the request is rejected immediately. Neither path performs any network I/O, and neither is subject to any API rate limit.
+5. Speech Transcription and VLM Inference (Tier 2, only when escalating): If the CNN escalated, and only then, any audio is transcribed by the Groq-hosted Whisper API (`whisper-large-v3-turbo`), and the image, transcript and user notes are assembled into a constrained system prompt. The prompt forces the VLM (`qwen/qwen3.6-27b` served on Groq) to reason strictly from visible characteristics and return a structured JSON response. Reasoning output is suppressed (`reasoning_effort="none"`) to guarantee low latency. If no API key is configured, the request instead returns an explicit low-confidence result; the system never fabricates a diagnosis to fill the gap.
+6. Invariant Checks: The result - whether produced locally or by the VLM - is passed to the safety-invariant layer, which validates the taxonomy mappings.
+7. DB Writing & Client Response: If the user is logged in, the metadata is saved to the SQLite database. The sanitized JSON object is returned to the client and rendered dynamically on the UI.
 
 ```
 +------------------+      POST /api/analyze      +--------------------+
@@ -121,28 +141,35 @@ When a farmer submits a diagnosis request, the data travels through the followin
          ^                                                 |
          |                                                 | 1. Binary check
          |                                                 v
-         |                                       +--------------------+
-         |                                       | Whisper ASR API    |
-         |                                       | (Audio -> Text)    |
-         |                                       +--------------------+
+         |                                    +----------------------------+
+         |                                    | TIER 1: LOCAL CNN          |
+         |                                    | EfficientNet-B0, 21 classes|
+         |                                    | (19 in-scope + 2 reject)   |
+         |                                    | TTA + temperature scaling  |
+         |                                    +----------------------------+
+         |                                       |        |            |
+         |                            confident  |   not a|plant       | escalate
+         |                            in-scope   |        |            |
+         |                                       v        v            v
+         |                          +-------------+  +---------+  +--------------------+
+         |                          | Offline     |  | Reject  |  | TIER 2: HOSTED VLM |
+         |                          | advice base |  | locally |  | Whisper ASR ->     |
+         |                          | + Grad-CAM  |  |         |  | Groq Qwen VLM      |
+         |                          | NO NETWORK  |  |NO NETWRK|  | (only path using   |
+         |                          +-------------+  +---------+  |  API quota)        |
+         |                                  |             |       +--------------------+
+         |                                  |             |            |
+         |                                  v             v            v
+         |                                +--------------------------------+
+         |                                | Safety-Invariant Gating Layer  |
+         |                                | (every path exits through here)|
+         |                                +--------------------------------+
          |                                                 |
-         |                                                 | 2. Transcript merge
-         |                                                 v
-         |                                       +--------------------+
-         |                                       | Groq Qwen VLM      |
-         |                                       | (Image + Text)     |
-         |                                       +--------------------+
-         |                                                 |
-         |                                                 | 3. Raw JSON output
-         |                                                 v
-         |                                       +--------------------+
-         |                                       | Safety-Invariant   |
-         |                                       | Gating Layer       |
-         |                                       +--------------------+
-         |                                                 |
-         |             Unified JSON Response               | 4. Validate or Reject
+         |             Unified JSON Response               | 5. Validate or Reject
          +-------------------------------------------------+
 ```
+
+It is worth stating explicitly that the two rejection mechanisms in this diagram are not redundant, because they fail in different ways. The CNN's out-of-scope classes are a learned, probabilistic judgement made by the model itself, and like any learned component they can be wrong on inputs unlike anything in training. The invariant layer is a deterministic table lookup that cannot be wrong in that sense, but it can only reject what the model has already declared - it validates a claimed subject and label, and cannot detect that a confidently claimed "tomato" is in fact a photograph of a wall. Each therefore catches a class of error the other structurally cannot, which is why both are retained.
 
 3.3 Asynchronous API Verification & Image Spoofing Countermeasures
 To prevent service misuse and coordinate API limits, the FastAPI backend applies defensive measures:
@@ -201,11 +228,67 @@ def enforce_invariants(R, user_selected_subject=None):
 This safety layer prevents model hallucinations. If the VLM attempts to diagnose "Tomato Late Blight" on an image of a goat, the label validation check (`predicted_label in L("Goat")`) returns `False`, and the system automatically downgrades the result to a rejection.
 
 ================================================================================
-4. EMPIRICAL MACHINE LEARNING EXPERIMENTS & PROTOTYPES
+4. THE DEPLOYED CLASSIFIER: DESIGN, TRAINING & EVALUATION
 ================================================================================
 
-4.1 Experiment A: Fine-Tuning a MobileNetV3 Crop-Leaf Classifier
-To explore the viability of a locally hosted classifier, an offline training run was executed using the script `scripts/train_real.py`.
+4.1 Out-of-Scope Class Design: Making Rejection Learnable
+The central obstacle to deploying a local classifier as the primary engine is structural rather than a matter of accuracy. A softmax over N crop-disease classes is normalised to sum to one, so for any input whatsoever - a car, a hand, a wall - the network must distribute all of its probability mass across diseases it knows. There is no "none of these" outcome available to it. Empirically such a network does not respond to unfamiliar input with a flat, uncertain distribution; it typically produces a confident, arbitrary answer. This is the reason the Version 3.0 architecture implemented a local classifier and then deliberately left it disabled: switching it on would have circumvented the very safety guarantees that justified the system's design.
+
+Two mitigations were considered and rejected before settling on the approach used.
+
+The first was confidence thresholding alone - accept the prediction only when the maximum softmax probability exceeds some bar. This fails because the pathology is precisely that out-of-distribution inputs produce high confidence; the quantity being thresholded is not trustworthy on the inputs where the threshold matters most.
+
+The second was a separate binary "is this a leaf?" gate placed in front of the classifier. This is workable but introduces a second model to train, calibrate, host and maintain, and shifts rather than removes the problem: the gate itself is a classifier facing the same open-world question.
+
+The adopted approach makes rejection a learned outcome inside the single classifier by adding two out-of-scope classes to the label set:
+
+* OOS_OTHER_PLANT - real photographs of leaves belonging to the nineteen plant species present in the source corpus that AgriDoctor does not support (apple, blueberry, cherry, grape, orange, peach, raspberry, soybean, squash, strawberry and others). These are genuine leaf images, so the network is forced to learn the distinction between supported and unsupported species rather than the far easier distinction between foliage and non-foliage.
+* OOS_NOT_PLANT - photographs of everyday objects, drawn from a general object-recognition corpus, representing the case where the uploaded image is not vegetation at all.
+
+The two classes are semantically distinct and are routed differently, which is the point of separating them. OOS_OTHER_PLANT means "this is a leaf, but not one I was trained on", and the correct response is to escalate to the more general hosted model, which may well recognise it - AgriDoctor's taxonomy includes rice, chili, cucumber, eggplant and four livestock species for which no free training imagery exists. OOS_NOT_PLANT means "this is not vegetation", where escalation would waste an API call to reach the same rejection, so the request is refused locally at zero cost. Collapsing both into a single "reject" class would have discarded exactly the distinction that makes the routing efficient.
+
+A methodological hazard arises from this construction and had to be addressed directly. The two out-of-scope classes are sourced from different corpora than the in-scope classes, which creates the risk that the network learns an incidental artefact of the source - most obviously image resolution, since the non-plant corpus is natively 64x64 while the leaf imagery is cached at 256px - rather than the semantic content. A model that separates the classes by sharpness would score well in evaluation and fail immediately on a blurred photograph of a real leaf. The training pipeline therefore applies a random downscale-then-upscale degradation to every class with equal probability, so that resolution carries no label information and cannot be exploited as a shortcut.
+
+4.2 Corpus Construction & Training Methodology
+The corpus is assembled by `scripts/prepare_dataset.py` from two public sources and cached to disk as resized JPEGs, so that training epochs are bounded by small-file I/O rather than by repeatedly decoding parquet archives.
+
+* In-scope data and OOS_OTHER_PLANT: `minhhungg/plant-disease-dataset` (HuggingFace), 70,295 images across 38 classes. Nineteen of these classes map onto the AgriDoctor taxonomy across four crops (Tomato, Potato, Pepper, Maize); the remaining nineteen become the OOS_OTHER_PLANT class.
+* OOS_NOT_PLANT: `zh-plus/tiny-imagenet`, a general object-recognition corpus.
+
+Total corpus: 47,269 images across 21 classes, split 70/15/15 into training, validation and test partitions. The split is stratified per class, so every class is represented in every partition. The test partition is held out entirely - it is not used for training, for epoch selection, or for fitting the calibration temperature.
+
+The training procedure (`scripts/train_cnn.py`) uses an ImageNet-pretrained EfficientNet-B0 backbone and applies the following techniques, each chosen against a specific identified failure mode rather than as generic best practice:
+
+* Two-stage schedule. The classifier head is trained alone for two epochs with the backbone frozen, after which the whole network is fine-tuned. This prevents the large gradients produced by a randomly initialised head from degrading the pretrained feature extractor in the first few steps.
+* MixUp and CutMix. Training on convex combinations and spatial composites of image pairs, with correspondingly mixed targets, discourages the network from resting its decision on a single dominant cue. This directly targets the documented PlantVillage failure mode discussed in Section 2.2, in which a network keys on the uniform studio background rather than on the lesion. These techniques also reduce overconfidence, which matters here because the routing layer thresholds the confidence value itself.
+* Resolution jitter across all classes, as described in Section 4.1.
+* Class-balanced sampling, label smoothing, RandAugment, random rotation and flips, and random erasing.
+* An exponential moving average of the weights, maintained alongside the raw weights. Both are evaluated each epoch and the better of the two is retained, rather than assuming the averaged copy is superior.
+* Model selection by macro-F1 rather than accuracy, so that the two out-of-scope classes - which are decisive for safety but need not be the most frequent - carry equal weight to the common diseases.
+* Temperature scaling (Guo et al., 2017) fitted on the validation partition after training. A single scalar divides the logits before the softmax, which is monotonic and therefore alters no prediction, but corrects the systematic overconfidence of a fine-tuned network. Because the serving layer routes on the confidence value, an uncalibrated model would mean routing decisions made on numbers that do not mean what they claim.
+
+[RESULTS TO BE INSERTED - training run in progress at time of writing: epochs completed, best validation macro-F1, selected epoch, fitted temperature, and calibration error before and after scaling.]
+
+4.3 Held-Out Evaluation: Accuracy, Calibration, OOD Detection & Robustness
+Evaluation is performed by `scripts/evaluate_cnn.py` on the held-out test partition, loading the model through the same serving class the API uses, so that the measured behaviour includes temperature scaling and the routing thresholds exactly as deployed. Four families of measurement are reported.
+
+First, conventional classification quality: overall accuracy, macro-F1, per-class precision and recall, and a row-normalised confusion matrix.
+
+Second, calibration, reported as expected calibration error before and after temperature scaling.
+
+Third, and most important for the safety argument, the behaviour of the rejection gate. The headline figure is the false-acceptance rate: the proportion of out-of-scope test images that would receive a confident in-scope diagnosis rather than being rejected or escalated. No accuracy figure substitutes for this measurement, because a model may classify its known classes almost perfectly while still mishandling the open-world inputs that motivated the whole design. This is supplemented by the area under the ROC curve for separating out-of-scope from in-scope inputs, reported separately for the two rejection classes since detecting a non-plant image is expected to be substantially easier than recognising an unfamiliar plant species. AUROC is threshold-independent and therefore distinguishes a model that cannot separate the two populations at all from one that separates them well but is operating at a poorly chosen threshold. A threshold sweep across nine operating points reports coverage, accuracy-when-answered and false-acceptance rate at each, providing the empirical basis for the deployed threshold rather than presenting it as an arbitrary constant.
+
+Fourth, robustness to field-like image degradation. Section 2.2 identifies domain shift as the principal weakness of PlantVillage-trained models, and clean test accuracy on studio imagery cannot measure it. The evaluation therefore re-runs the entire test partition under eight synthetic corruptions - Gaussian blur at two severities, sensor noise, under- and over-exposure, JPEG compression artefacts, partial occlusion, and resolution loss - approximating what a phone camera produces in a field. The gap between clean and corrupted accuracy is reported explicitly as an honest measure of the generalisation gap, and the false-acceptance rate is recomputed under each corruption, since a degradation that breaks the safety gate is materially worse than one that merely reduces accuracy.
+
+[RESULTS TO BE INSERTED - held-out evaluation runs automatically on completion of training: accuracy, macro-F1, per-class table, calibration error, false-acceptance rate, OOD AUROC figures, threshold sweep table, routing distribution, corruption robustness table, and single-image inference latency.]
+
+4.4 Explainability via Grad-CAM
+Diagnoses produced by the local classifier are accompanied by a Grad-CAM heatmap (Selvaraju et al., 2017), computed in `backend/ai/gradcam.py` by weighting the final convolutional feature maps by the mean gradient of the predicted logit with respect to each channel. The overlay is returned to the client and can be toggled against the original photograph in the interface.
+
+This serves two distinct purposes. For the farmer it converts an opaque label into an inspectable claim, indicating which region of the leaf the system responded to. For evaluation it provides a diagnostic that aggregate metrics cannot: a model that has learned the studio background rather than the lesion produces heatmaps concentrated away from the affected tissue, a failure entirely invisible in an accuracy score. The system additionally returns a numeric focus measure - the fraction of the image exceeding half of peak activation - so that diffuse, whole-frame attention can be identified programmatically rather than only by visual inspection.
+
+4.5 Prior Experiment A: Fine-Tuning a MobileNetV3 Crop-Leaf Classifier
+This experiment predates the deployed classifier described above and is retained as a record of the development process. To explore the viability of a locally hosted classifier, an offline training run was executed using the script `scripts/train_real.py`.
 
 * Backbone Architecture: Pretrained MobileNetV3-small, chosen for its low parameter count, fast inference, and suitability for mobile deployment.
 * Dataset: Mapped from `minhhungg/plant-disease-dataset` on the HuggingFace Hub.
@@ -227,9 +310,11 @@ To explore the viability of a locally hosted classifier, an offline training run
 
 > [!IMPORTANT]
 > **Academic Critique of Clinical Datasets**
-> While a validation F1-score of 99.31% suggests the classification problem is solved, this score is inflated by the nature of the PlantVillage dataset. The images are captured against uniform, plain backgrounds with optimal lighting. This dataset lacks background clutter, weed interference, and shadow variations. When tested on real field photos, this model's accuracy dropped to around 60%. This performance gap is why the deployed project uses a hosted VLM for visual inference, reserving the local CNN as an optional fast-path for high-confidence crop images.
+> While a validation F1-score of 99.31% suggests the classification problem is solved, this score is inflated by the nature of the PlantVillage dataset. The images are captured against uniform, plain backgrounds with optimal lighting. This dataset lacks background clutter, weed interference, and shadow variations. When tested on real field photos, this model's accuracy dropped to around 60%.
+>
+> Two conclusions were drawn from this experiment, and they shaped the deployed system described in Sections 4.1 to 4.4. The first is that a headline validation figure on this corpus is not evidence of field readiness, which is why the deployed classifier is evaluated additionally under simulated image degradation (Section 4.3) and why that gap is reported rather than omitted. The second, and the more consequential, is that this classifier could not be deployed as the primary engine at all - not because of the accuracy gap, but because with seventeen disease classes and no out-of-scope class it had no mechanism for declining an image, and would therefore have returned a confident crop diagnosis for any photograph whatsoever. Addressing that structural limitation, rather than pursuing a higher score, is what produced the deployed model.
 
-4.2 Experiment B: Multimodal Fusion Ablation Study (ViT & DistilBERT)
+4.6 Prior Experiment B: Multimodal Fusion Ablation Study (ViT & DistilBERT)
 To verify if combining textual symptom descriptions with images improves classification accuracy, we evaluated a multimodal fusion network (`scripts/train_fusion_real.py`).
 
 * Architecture:
@@ -244,7 +329,7 @@ To verify if combining textual symptom descriptions with images improves classif
 
 The multimodal fusion approach improved the macro F1-score by **+8.3 points** over the image-only model. This indicates that adding symptom context allows the model to resolve visual ambiguities (such as early-stage lesions that look like general nutrient deficiencies).
 
-4.3 Custom Data Annotation Infrastructure (Streamlit Framework)
+4.7 Custom Data Annotation Infrastructure (Streamlit Framework)
 To address the lack of severity and image-quality labels in public datasets, we developed a custom annotation tool (`tools/annotator_app.py`). Built with Streamlit, the tool allows annotators to load raw images, assign primary crop/disease labels, adjust a continuous severity slider (0.0 to 1.0), flag focus/blur quality issues, and write natural language symptom summaries. This tool helps build the specialized datasets needed to train future multimodal models.
 
 ================================================================================
@@ -311,7 +396,10 @@ Providing automated agricultural and veterinary diagnostics carries real safety 
 * Section 1.4 (Be Fair and Take Action Not to Discriminate):
   - Designed as an installable PWA with vanilla JavaScript and no build step. This keeps the application lightweight, fast, and accessible on low-end mobile devices and slower cellular networks in rural areas.
 * Section 2.5 (Give Comprehensive and Thorough Evaluations of Computer Systems and Their Limitations):
-  - The system is biased toward uncertainty. If the VLM is not confident in the diagnosis, the server rejects the request with a polite explanation rather than return an uncertain guess.
+  - The system is biased toward uncertainty at every tier. The local classifier answers only when its calibrated confidence and its margin over the runner-up both clear configured thresholds; otherwise it escalates rather than guessing. Where no hosted model is configured to escalate to, the response is an explicit statement that the system is not confident, never a fabricated diagnosis.
+  - Confidence figures shown to the user are calibrated by temperature scaling rather than being raw softmax outputs. This is an ethical point as much as a technical one: an uncalibrated network reports something like 97% on predictions that are correct far less often, and presenting that number to a farmer deciding whether to spend money on chemicals would materially misrepresent the system's certainty.
+  - The system's limitations are measured and published rather than described in general terms. Section 4.3 reports the false-acceptance rate on out-of-scope imagery, and accuracy under eight forms of image degradation approximating real field photography, precisely because clean-dataset accuracy is known to overstate field performance for models trained on this corpus.
+  - The division of labour between the local and hosted engines is disclosed in the interface: each result indicates which engine produced it, and locally produced diagnoses carry a Grad-CAM overlay so the user can see which part of the leaf the system responded to rather than being asked to trust an unexplained label.
 
 ================================================================================
 7. REQUIRED DIGITAL ASSETS & HOSTING LINKS
@@ -349,4 +437,18 @@ Providing automated agricultural and veterinary diagnostics carries real safety 
 [8] Food and Agriculture Organization of the United Nations (FAO), "Understanding the context — Pest and Pesticide Management," FAO, 2021. [Online]. Available: https://www.fao.org/pest-and-pesticide-management/about/understanding-the-context/en/
 
 [9] GSMA, "Detecting and managing crop pests and diseases with AI: Insights from Plantix," GSMA Agritech, 2020. [Online]. Available: https://www.gsma.com/solutions-and-impact/connectivity-for-good/mobile-for-development/programme/agritech/detecting-and-managing-crop-pests-and-diseases-with-ai-insights-from-plantix/
+
+[10] M. Tan and Q. V. Le, "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks," in International Conference on Machine Learning (ICML), 2019. [Online]. Available: https://arxiv.org/abs/1905.11946
+
+[11] C. Guo, G. Pleiss, Y. Sun, and K. Q. Weinberger, "On Calibration of Modern Neural Networks," in International Conference on Machine Learning (ICML), 2017. [Online]. Available: https://arxiv.org/abs/1706.04599
+
+[12] R. R. Selvaraju et al., "Grad-CAM: Visual Explanations from Deep Networks via Gradient-based Localization," in IEEE International Conference on Computer Vision (ICCV), 2017, pp. 618-626. [Online]. Available: https://arxiv.org/abs/1610.02391
+
+[13] H. Zhang, M. Cisse, Y. N. Dauphin, and D. Lopez-Paz, "mixup: Beyond Empirical Risk Minimization," in International Conference on Learning Representations (ICLR), 2018. [Online]. Available: https://arxiv.org/abs/1710.09412
+
+[14] S. Yun et al., "CutMix: Regularization Strategy to Train Strong Classifiers with Localizable Features," in IEEE International Conference on Computer Vision (ICCV), 2019, pp. 6023-6032. [Online]. Available: https://arxiv.org/abs/1905.04899
+
+[15] D. Hendrycks and T. Dietterich, "Benchmarking Neural Network Robustness to Common Corruptions and Perturbations," in International Conference on Learning Representations (ICLR), 2019. [Online]. Available: https://arxiv.org/abs/1903.12261
+
+[16] D. Hendrycks and K. Gimpel, "A Baseline for Detecting Misclassified and Out-of-Distribution Examples in Neural Networks," in International Conference on Learning Representations (ICLR), 2017. [Online]. Available: https://arxiv.org/abs/1610.02136
 ================================================================================

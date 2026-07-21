@@ -105,3 +105,58 @@ def test_weak_password_rejected(client):
         "/api/auth/register", json={"email": "w@example.com", "password": "short"}
     )
     assert r.status_code == 422
+
+
+def test_heatmap_is_returned_but_not_persisted(client, use_fake, png_bytes, monkeypatch):
+    """Grad-CAM must reach the client but must never be written to the database.
+
+    The overlay is ~200KB of base64 per diagnosis and is derived data — it can be
+    recomputed from the stored image. Persisting it would put a quarter-megabyte
+    blob in every `predictions` row, and `GET /api/cases/{id}` does `SELECT *`, so
+    every history view would read and ship it back too.
+    """
+    from backend.routers import analyze as analyze_router
+    from backend.ai.schemas import AnalysisResult
+
+    email = f"u_{uuid.uuid4().hex[:8]}@example.com"
+    reg = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "strongpass1", "full_name": "U"},
+    )
+    token = reg.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    fake_heatmap = "QUJDRA==" * 200  # stand-in for a real base64 PNG
+
+    # Attach a heatmap the way the local-CNN path does, after analysis completes.
+    real_analyze = analyze_router._service._analyzer.analyze
+
+    def with_heatmap(*a, **kw) -> AnalysisResult:
+        result = real_analyze(*a, **kw)
+        result.heatmap_png_b64 = fake_heatmap
+        result.heatmap_focus = 0.37
+        return result
+
+    use_fake(DIAGNOSIS_PAYLOAD)
+    monkeypatch.setattr(analyze_router._service._analyzer, "analyze", with_heatmap)
+
+    r = client.post(
+        "/api/analyze",
+        headers=headers,
+        files={"image": ("leaf.png", png_bytes, "image/png")},
+        data={"crop_hint": "tomato"},
+    )
+    assert r.status_code == 200
+    body = r.json()
+
+    # The live response carries it — the UI needs it to render the overlay.
+    assert body["heatmap_png_b64"] == fake_heatmap
+    assert body["heatmap_focus"] == 0.37
+
+    # The stored copy must not.
+    case_id = body["case_id"]
+    detail = client.get(f"/api/cases/{case_id}", headers=headers)
+    assert detail.status_code == 200
+    raw = detail.json()["prediction"].get("raw_response") or ""
+    assert fake_heatmap not in raw, "Grad-CAM blob leaked into the database"
+    assert "heatmap_png_b64" not in raw

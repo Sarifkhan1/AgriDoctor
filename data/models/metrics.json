@@ -47,5 +47,5 @@
     "TOM_SEPTORIA": 1.0,
     "TOM_SPIDER_MITES": 0.9917
   },
-  "note": "Small honest proof-of-concept. NOT the deployed engine (Groq VLM). PlantVillage-style images have plain backgrounds, so field accuracy is lower."
+  "note": "Prior experiment (scripts/train_real.py), superseded. Kept as a record of the development process. This model is NOT deployed: with 17 classes and no out-of-scope class it cannot decline an image, so it would return a confident crop diagnosis for any photo. The deployed engine is the 21-class EfficientNet-B0 from scripts/train_cnn.py (see data/models/train_metrics.json and eval_report.json). PlantVillage-style images have plain backgrounds, so field accuracy is lower than shown here."
 }

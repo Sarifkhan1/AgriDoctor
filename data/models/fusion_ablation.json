@@ -31,5 +31,5 @@
   },
   "fusion_vs_best_single": 0.0831,
   "device": "mps",
-  "note": "Honest, reproducible ablation. Encoders frozen; text is synthetic (templated). Offline experiment only \u2014 deployed engine is the Groq VLM."
+  "note": "Honest, reproducible ablation. Encoders frozen; text is synthetic (templated), not real farmer input. Offline experiment only \u2014 not deployed. The deployed engine is the 21-class EfficientNet-B0 from scripts/train_cnn.py."
 }

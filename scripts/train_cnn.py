@@ -348,6 +348,30 @@ def expected_calibration_error(probs, labels, bins=15):
     return float(ece)
 
 
+def save_checkpoint(path: Path, meta: dict, best: dict, temperature: float, args):
+    """Write a self-contained checkpoint the serving layer can load directly.
+
+    Everything inference needs travels with the weights — class order, input size,
+    normalisation constants and the calibration temperature — so serving never has
+    to guess how the model was trained.
+    """
+    import torch
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(
+        {
+            **meta,
+            "model_state_dict": best["state_dict"],
+            "temperature": temperature,
+            "best_epoch": best["epoch"],
+            "best_macro_f1": best["macro_f1"],
+            "weights_source": best.get("weights", "raw"),
+            "dropout": args.dropout,
+        },
+        path,
+    )
+
+
 def plot_curves(history, path: Path):
     import matplotlib
 
@@ -477,6 +501,17 @@ def main():
         args.ema_decay if ema else "off",
     )
 
+    # Fixed fields written into every checkpoint save.
+    model_meta = {
+        "arch": args.arch,
+        "num_classes": len(classes),
+        "classes": classes,
+        "idx_to_label": {i: c for i, c in enumerate(classes)},
+        "input_size": args.size,
+        "normalize_mean": IMAGENET_MEAN,
+        "normalize_std": IMAGENET_STD,
+    }
+
     history, best = [], {"macro_f1": -1.0, "epoch": -1}
     stale = 0
     optimizer = scheduler = None
@@ -565,7 +600,19 @@ def main():
                 "preds": val_preds,
             }
             stale = 0
-            log.info("  ^ new best")
+
+            # Write the checkpoint now rather than only at the end. A long run on
+            # a memory-constrained machine can be killed at any point, and losing
+            # every epoch because the process died at 14/16 is not a risk worth
+            # carrying for the ~1s this costs. Calibration is refitted here so the
+            # saved file is always complete and directly loadable.
+            temperature = fit_temperature(best["logits"], best["labels"])
+            save_checkpoint(
+                MODELS_DIR / args.out, model_meta, best, temperature, args
+            )
+            log.info(
+                "  ^ new best (saved, temperature=%.4f)", temperature
+            )
         else:
             stale += 1
             if stale >= args.patience:
@@ -587,26 +634,10 @@ def main():
         output_dict=True, zero_division=0,
     )
 
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    # Rewrite with the final temperature. The per-improvement saves above already
+    # left a loadable checkpoint on disk; this just makes the last one canonical.
     ckpt_path = MODELS_DIR / args.out
-    torch.save(
-        {
-            "arch": args.arch,
-            "num_classes": len(classes),
-            "classes": classes,
-            "idx_to_label": {i: c for i, c in enumerate(classes)},
-            "model_state_dict": best["state_dict"],
-            "input_size": args.size,
-            "normalize_mean": IMAGENET_MEAN,
-            "normalize_std": IMAGENET_STD,
-            "temperature": temperature,
-            "best_epoch": best["epoch"],
-            "best_macro_f1": best["macro_f1"],
-            "weights_source": best.get("weights", "raw"),
-            "dropout": args.dropout,
-        },
-        ckpt_path,
-    )
+    save_checkpoint(ckpt_path, model_meta, best, temperature, args)
 
     metrics = {
         "arch": args.arch,

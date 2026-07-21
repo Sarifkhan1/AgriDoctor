@@ -132,6 +132,16 @@ class AnalysisService:
         crop_name = result.detected_crop or crop_hint
         advice = result.advice.model_dump() if result.advice else None
 
+        # The Grad-CAM overlay is ~200KB of base64 per diagnosis and is derived
+        # data — it can be recomputed at any time from the image we store below.
+        # Persisting it would put a quarter-megabyte blob in every row of
+        # `predictions`, and `GET /api/cases/{id}` does `SELECT *`, so it would be
+        # read back and shipped to the client on every history view too. The
+        # heatmap stays in the live API response; only the stored copy drops it.
+        stored_result = result.model_dump(
+            exclude={"heatmap_png_b64"}, mode="json"
+        )
+
         with get_db() as conn:
             conn.execute(
                 """INSERT INTO cases (id, user_id, category, crop_name, status)
@@ -174,7 +184,7 @@ class AnalysisService:
                     result.confidence,
                     result.visual_evidence,
                     json.dumps(advice) if advice else None,
-                    json.dumps(result.model_dump(), default=str),
+                    json.dumps(stored_result, default=str),
                 ),
             )
         return case_id
