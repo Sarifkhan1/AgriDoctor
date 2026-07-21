@@ -8,6 +8,12 @@ from io import BytesIO
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 os.environ.setdefault("GROQ_API_KEY", "test-groq-key")
 os.environ.setdefault("ALLOWED_ORIGINS", "http://localhost:3000")
+# The CNN is the primary engine in production, but these tests exercise the
+# hosted-model path through FakeProvider. Left on, a real checkpoint on disk
+# would answer first and silently bypass the fake — so the suite would pass or
+# fail depending on whether someone had run training. CNN behaviour is covered
+# separately in test_cnn_routing.py with an explicit fake predictor.
+os.environ.setdefault("USE_LOCAL_CNN", "false")
 _tmp_db = os.path.join(tempfile.mkdtemp(prefix="agridoctor_test_"), "test.db")
 os.environ["DATABASE_PATH"] = _tmp_db
 

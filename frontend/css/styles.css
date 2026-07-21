@@ -3055,6 +3055,32 @@ textarea:focus-visible {
   border: 1px solid var(--color-gray-200);
 }
 .diag__img { width: 100%; display: block; aspect-ratio: 4/3; object-fit: cover; }
+/* Grad-CAM toggle — sits over the photo, only rendered when the local CNN
+   returned a heatmap (the hosted model exposes no activations). */
+.diag__imgwrap { position: relative; }
+.diag__camtoggle {
+  position: absolute;
+  left: var(--spacing-2);
+  bottom: var(--spacing-2);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-white);
+  background: rgba(0, 0, 0, 0.62);
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s ease;
+}
+.diag__camtoggle:hover { background: rgba(0, 0, 0, 0.8); }
+.diag__camtoggle:focus-visible { outline: 2px solid var(--color-white); outline-offset: 2px; }
+.diag__camnote {
+  margin: var(--spacing-2) 0 0;
+  font-size: 0.75rem;
+  color: var(--color-gray-500);
+  text-align: center;
+}
 .diag__facts {
   background: var(--color-white);
   border: 1px solid var(--color-gray-200);

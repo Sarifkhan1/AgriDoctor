@@ -1,6 +1,11 @@
-# AgriDoctor AI - Offline ML / training dependencies.
-# ONLY needed to run the training & experimentation code in src/ and the
-# Streamlit annotation tool. The serving API (backend/) does NOT need these.
+# AgriDoctor AI - ML dependencies.
+#
+# Needed to TRAIN (scripts/prepare_dataset.py, train_cnn.py, evaluate_cnn.py)
+# and to SERVE the local CNN, which is the primary diagnosis engine — torch and
+# torchvision are required at runtime whenever USE_LOCAL_CNN=true.
+#
+# To run the API in cloud-only mode (USE_LOCAL_CNN=false), requirements.txt
+# alone is enough; the CNN imports are lazy so the app starts without torch.
 
 -r requirements.txt
 
@@ -20,6 +25,9 @@ numpy>=1.26.0
 pandas>=2.1.0
 scipy>=1.11.0
 scikit-learn>=1.3.0
+
+# Plots: training curves + confusion matrix (scripts/train_cnn.py, evaluate_cnn.py)
+matplotlib>=3.8.0
 
 # Config / utils
 PyYAML>=6.0.1

@@ -102,11 +102,37 @@ const UI = (() => {
     // Left column: image + quick facts
     const left = el('div', { cls: 'diag__left' });
     if (ctx && ctx.imageUrl) {
-      left.appendChild(
-        el('div', { cls: 'diag__imgwrap' }, [
-          el('img', { cls: 'diag__img', attrs: { src: ctx.imageUrl, alt: 'Uploaded leaf' } }),
-        ])
-      );
+      const imgEl = el('img', { cls: 'diag__img', attrs: { src: ctx.imageUrl, alt: 'Uploaded leaf' } });
+      const wrap = el('div', { cls: 'diag__imgwrap' }, [imgEl]);
+
+      // Grad-CAM is only produced by the local CNN — the hosted model exposes no
+      // activations — so the toggle appears only when a heatmap came back.
+      if (r.heatmap_png_b64) {
+        const heatUrl = `data:image/png;base64,${r.heatmap_png_b64}`;
+        let showing = false;
+        const btn = el('button', {
+          cls: 'diag__camtoggle',
+          text: '🔥 Show what the AI looked at',
+          attrs: { type: 'button', 'aria-pressed': 'false' },
+        });
+        btn.addEventListener('click', () => {
+          showing = !showing;
+          imgEl.src = showing ? heatUrl : ctx.imageUrl;
+          imgEl.alt = showing ? 'Grad-CAM heatmap of the model attention' : 'Uploaded leaf';
+          btn.textContent = showing ? '🍃 Show original photo' : '🔥 Show what the AI looked at';
+          btn.setAttribute('aria-pressed', String(showing));
+        });
+        wrap.appendChild(btn);
+        left.appendChild(wrap);
+        left.appendChild(
+          el('p', {
+            cls: 'diag__camnote',
+            text: 'Red areas are the regions that most influenced this diagnosis.',
+          })
+        );
+      } else {
+        left.appendChild(wrap);
+      }
     }
     const facts = el('div', { cls: 'diag__facts' });
     facts.appendChild(fact('Crop', `${CROP_EMOJI[(r.detected_crop || '').toLowerCase()] || '🌱'} ${titleCase(r.detected_crop || '—')}`));

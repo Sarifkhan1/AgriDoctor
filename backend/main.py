@@ -1,14 +1,16 @@
 """
 AgriDoctor AI - FastAPI application entrypoint.
 
-Real multimodal diagnosis is powered by the Groq vision/audio engine
-(backend/ai/*). Auth + case history use SQLite. See docs/implementation/.
+Diagnosis runs local-CNN-first with the hosted Groq vision model as the
+escalation tier for crops the CNN wasn't trained on (backend/ai/*). Auth + case
+history use SQLite. See docs/implementation/.
 """
 
 import logging
 import time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -99,7 +101,26 @@ app.include_router(media.router)
 
 @app.get("/health", tags=["System"])
 async def health_check():
-    return {"status": "healthy", "version": VERSION}
+    """Liveness plus which inference engines are actually usable right now.
+
+    Reports the CNN without loading it — `available` is a file check, so hitting
+    /health stays cheap and doesn't pull PyTorch into memory on a cold process.
+    """
+    from .config import get_settings
+
+    settings = get_settings()
+    engines = {
+        "local_cnn": {
+            "enabled": settings.use_local_cnn,
+            "checkpoint": settings.cnn_model_path,
+            "available": Path(settings.cnn_model_path).exists(),
+        },
+        "hosted_vlm": {
+            "configured": bool(settings.groq_api_key),
+            "model": settings.groq_vision_model,
+        },
+    }
+    return {"status": "healthy", "version": VERSION, "engines": engines}
 
 
 @app.get("/", tags=["System"])

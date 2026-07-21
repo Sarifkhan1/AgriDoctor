@@ -1,14 +1,28 @@
 """
-Analysis orchestrator: transcript -> prompt -> vision call -> validated result.
+Analysis orchestrator: image -> local CNN -> (escalate to hosted VLM) -> result.
 
-Hybrid pipeline:
-1. If a trained local CNN model is available, try it first (fast, no API cost).
-2. If CNN confidence >= threshold, use it as the primary diagnosis and call
-   Groq only for treatment advice (cheap text call, no vision).
-3. Otherwise, fall back to the full Groq vision pipeline.
+The local CNN is the primary engine. It was trained with explicit out-of-scope
+classes, so it produces a routing decision rather than a forced label:
 
-Applies server-side invariants so a single model hallucination can never leak a
-fabricated diagnosis for an unsupported crop or a non-leaf image.
+  diagnosis  confident, in-scope crop disease
+               -> answer entirely locally: curated advice, Grad-CAM, no network
+  not_plant  confidently not vegetation
+               -> reject locally, no network
+  escalate   another plant species, or low confidence
+               -> hand the image to the hosted vision model
+
+Escalation is a designed tier, not a failure path. AgriDoctor's taxonomy covers
+eight crops and four livestock species; the public PlantVillage corpus only has
+images for tomato, potato, pepper and maize. Rice, chili, cucumber, eggplant and
+all livestock therefore *cannot* be learned locally and are meant to escalate.
+
+The practical effect is that the common case — a tomato or potato leaf — costs
+no API call at all, which is what removes the free-tier rate limit from normal
+use. When no Groq key is configured the app still works; escalated cases return
+an honest low-confidence result instead.
+
+Every path, local or hosted, exits through _enforce_invariants so a model
+mistake cannot leak a fabricated diagnosis for an unsupported subject.
 """
 
 import base64
@@ -19,10 +33,16 @@ from typing import Optional
 from pydantic import ValidationError
 
 from ..config import get_settings
-from .cnn_predictor import CNNPredictor, get_predictor
+from . import local_advice
+from .cnn_predictor import (
+    DECISION_DIAGNOSIS,
+    DECISION_NOT_PLANT,
+    CNNPredictor,
+    get_predictor,
+)
 from .prompts import build_system_prompt, build_user_context
 from .provider import AIProvider, GroqProvider
-from .schemas import AdviceBlock, AnalysisResult, ResultKind, Urgency
+from .schemas import AnalysisResult, ResultKind, Urgency
 from .taxonomy import (
     SUPPORTED_CROPS,
     SUPPORTED_LIVESTOCK,
@@ -55,7 +75,13 @@ class Analyzer:
         if self._cnn is None:
             settings = get_settings()
             if settings.use_local_cnn:
-                self._cnn = get_predictor(settings.cnn_model_path)
+                self._cnn = get_predictor(
+                    settings.cnn_model_path,
+                    confidence_threshold=settings.cnn_confidence_threshold,
+                    margin_threshold=settings.cnn_margin_threshold,
+                    reject_threshold=settings.cnn_reject_threshold,
+                    use_tta=settings.cnn_use_tta,
+                )
         return self._cnn
 
     # ------------------------------------------------------------------ #
@@ -86,39 +112,65 @@ class Analyzer:
                     "Audio transcription failed; continuing image-only", exc_info=True
                 )
 
-        # --- Try local CNN first ---
+        # --- Tier 1: local CNN ---
         cnn_result = self._try_cnn(image_bytes, settings)
 
         if cnn_result is not None:
+            decision = cnn_result["decision"]
             logger.info(
-                "CNN prediction: %s (conf=%.2f)",
+                "CNN: %s -> %s (conf=%.2f, margin=%.2f) — %s",
                 cnn_result["primary_label"],
+                decision,
                 cnn_result["confidence"],
+                cnn_result["margin"],
+                cnn_result["reason"],
             )
 
-            if cnn_result["confidence"] >= settings.cnn_confidence_threshold:
-                # CNN is confident — build result from CNN, optionally get advice from Groq
-                result = self._cnn_to_result(cnn_result, settings)
-
-                # Try to get treatment advice from Groq (text-only, cheap)
-                try:
-                    advice = self._get_advice_from_groq(
-                        result, crop_hint, transcript, notes, onset_days, spread, nlu_hints
-                    )
-                    if advice:
-                        result.advice = advice
-                except Exception:
-                    logger.warning("Groq advice call failed (non-fatal)", exc_info=True)
-
-                return self._enforce_invariants(result, crop_hint, bool(transcript))
-            else:
-                logger.info(
-                    "CNN confidence %.2f < threshold %.2f — falling back to Groq",
-                    cnn_result["confidence"],
-                    settings.cnn_confidence_threshold,
+            if decision == DECISION_DIAGNOSIS:
+                result = self._cnn_to_result(
+                    cnn_result, transcript, notes, onset_days, spread
                 )
+                if settings.enable_gradcam:
+                    self._attach_gradcam(result, image_bytes)
+                return self._enforce_invariants(result, crop_hint, bool(transcript))
 
-        # --- Groq vision pipeline (full) ---
+            if decision == DECISION_NOT_PLANT:
+                # Rejected locally — no API call, so this path is never rate-limited.
+                return self._enforce_invariants(
+                    AnalysisResult(
+                        kind=ResultKind.NOT_A_LEAF,
+                        is_plant=False,
+                        is_leaf=False,
+                        confidence=cnn_result["confidence"],
+                        message=(
+                            "No plant leaf was detected in this photo. Please upload a "
+                            "clear, close-up image of a single crop leaf."
+                        ),
+                        provider="local_cnn",
+                        model_id=cnn_result.get("model"),
+                    ),
+                    crop_hint,
+                    bool(transcript),
+                )
+            # decision == escalate -> fall through to the hosted model.
+
+        # --- Tier 2: hosted vision model ---
+        # Reached when the CNN declined, is disabled, or has no checkpoint. Without
+        # a configured key we say so honestly rather than inventing a diagnosis.
+        if not settings.groq_api_key:
+            return self._enforce_invariants(
+                AnalysisResult(
+                    kind=ResultKind.LOW_CONFIDENCE,
+                    message=(
+                        "We couldn't confidently identify this image. The offline "
+                        "model covers tomato, potato, pepper and maize leaves — for "
+                        "other crops or animals, a cloud AI key must be configured."
+                    ),
+                    provider="local_cnn",
+                ),
+                crop_hint,
+                bool(transcript),
+            )
         # NOTE: we deliberately do NOT pass crop_hint into the vision prompt.
         # The crop button is an unreliable guess and, when injected as text, the
         # model tends to defer to it and mislabel other species (e.g. a grape leaf
@@ -147,8 +199,13 @@ class Analyzer:
     # CNN helpers
     # ------------------------------------------------------------------ #
     def _try_cnn(self, image_bytes: bytes, settings) -> Optional[dict]:
-        """Attempt CNN prediction. Returns None on any failure."""
-        if not settings.use_local_cnn:
+        """Attempt CNN prediction. Returns None on any failure.
+
+        An explicitly injected predictor is always used: the config flag governs
+        whether we build one from settings, not whether a caller-supplied one is
+        honoured.
+        """
+        if self._cnn is None and not settings.use_local_cnn:
             return None
         predictor = self.cnn
         if predictor is None or not predictor.available:
@@ -160,17 +217,32 @@ class Analyzer:
             return None
 
     @staticmethod
-    def _cnn_to_result(cnn: dict, settings) -> AnalysisResult:
-        """Convert CNN prediction dict to an AnalysisResult."""
+    def _cnn_to_result(
+        cnn: dict,
+        transcript: str = "",
+        notes: Optional[str] = None,
+        onset_days: Optional[int] = None,
+        spread: Optional[str] = None,
+    ) -> AnalysisResult:
+        """Build a complete AnalysisResult from a confident CNN prediction.
+
+        Advice comes from the curated offline knowledge base rather than a
+        language model: the disease is already identified, so generating the
+        guidance would only add latency, a rate limit and a hallucination risk.
+        """
         label = cnn["primary_label"]
         meta = label_meta(label)
-
-        # Determine the crop from the label prefix
-        crop_name = None
-        if meta:
-            crop_name = meta.get("crop")
-
+        crop_name = meta.get("crop") if meta else None
         is_healthy = label.endswith("_HEALTHY")
+
+        severity = local_advice.severity_for(label)
+        advice = local_advice.advice_for(label)
+        if advice is not None:
+            # Fold in anything the farmer told us that changes the urgency of the
+            # actions (not the diagnosis itself — that stays purely visual).
+            extra = local_advice.contextual_notes(transcript, notes, onset_days, spread)
+            if extra:
+                advice.what_to_do_now = advice.what_to_do_now + extra
 
         return AnalysisResult(
             kind=ResultKind.HEALTHY if is_healthy else ResultKind.DIAGNOSIS,
@@ -183,78 +255,34 @@ class Analyzer:
             category=meta["category"] if meta else None,
             secondary_labels=[
                 p["label"]
-                for p in cnn.get("top_predictions", [])[1:3]
+                for p in cnn.get("in_scope_predictions", [])[1:3]
                 if p["label"] in all_label_ids()
             ],
             confidence=cnn["confidence"],
-            severity_score=cnn.get("severity", 0.5),
-            urgency_level=(
-                Urgency.low
-                if is_healthy
-                else (Urgency.high if cnn.get("severity", 0.5) > 0.7 else Urgency.medium)
+            severity_score=severity,
+            urgency_level=local_advice.urgency_for(label),
+            advice=advice,
+            visual_evidence=(
+                meta.get("description") if meta and not is_healthy else None
             ),
             provider="local_cnn",
-            model_id="CropDiseaseViT",
+            model_id=cnn.get("model"),
         )
 
-    def _get_advice_from_groq(
-        self,
-        result: AnalysisResult,
-        crop_hint: Optional[str],
-        transcript: str,
-        notes: Optional[str],
-        onset_days: Optional[int],
-        spread: Optional[str],
-        nlu_hints: Optional[str],
-    ) -> Optional[AdviceBlock]:
-        """Ask Groq (text-only, no vision) for treatment advice."""
-        if result.kind == ResultKind.HEALTHY:
-            return AdviceBlock(
-                summary="Your plant looks healthy! No disease symptoms detected.",
-                what_to_do_now=["Continue regular care and monitoring."],
-                prevention=["Maintain good watering practices.", "Ensure proper spacing."],
-            )
-
-        settings = get_settings()
-        prompt = (
-            f"You are an agricultural disease advisor. A CNN model identified "
-            f"{result.disease_name} ({result.primary_label}) on {result.detected_crop} "
-            f"with {result.confidence:.0%} confidence and severity {result.severity_score:.0%}.\n"
-        )
-        if transcript:
-            prompt += f"Farmer's voice description: {transcript}\n"
-        if notes:
-            prompt += f"Notes: {notes}\n"
-        if onset_days is not None:
-            prompt += f"Onset: {onset_days} days ago\n"
-        if spread:
-            prompt += f"Spread: {spread}\n"
-        prompt += (
-            "\nRespond with a JSON object with these fields: "
-            '"summary" (string), "what_to_do_now" (array of strings), '
-            '"prevention" (array of strings), "when_to_get_help" (array of strings).'
-        )
-
+    def _attach_gradcam(self, result: AnalysisResult, image_bytes: bytes) -> None:
+        """Best-effort Grad-CAM overlay; never fails a diagnosis."""
+        predictor = self.cnn
+        if predictor is None:
+            return
         try:
-            from groq import Groq
+            from .gradcam import explain_image
 
-            client = Groq(
-                api_key=settings.groq_api_key,
-                timeout=float(settings.ai_timeout_seconds),
-            )
-            resp = client.chat.completions.create(
-                model=settings.groq_text_model,
-                temperature=0.3,
-                max_tokens=800,
-                response_format={"type": "json_object"},
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw = resp.choices[0].message.content or ""
-            data = json.loads(raw)
-            return AdviceBlock(**data)
+            cam = explain_image(predictor, image_bytes)
+            if cam:
+                result.heatmap_png_b64 = cam["overlay_png_b64"]
+                result.heatmap_focus = cam["peak_fraction"]
         except Exception:
-            logger.warning("Groq text advice call failed", exc_info=True)
-            return None
+            logger.warning("Grad-CAM failed (non-fatal)", exc_info=True)
 
     # ------------------------------------------------------------------ #
     @staticmethod

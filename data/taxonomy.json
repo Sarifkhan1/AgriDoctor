@@ -7,6 +7,8 @@
     {"label_id": "TOM_SPIDER_MITES", "disease_name": "Spider Mites", "category": "pest", "description": "Fine webbing, yellow stippling on leaves"},
     {"label_id": "TOM_MOSAIC", "disease_name": "Mosaic Virus", "category": "viral", "description": "Mottled yellow-green pattern, distorted leaves"},
     {"label_id": "TOM_BACL_SPOT", "disease_name": "Bacterial Spot", "category": "bacterial", "description": "Small, dark, water-soaked spots on leaves/fruit"},
+    {"label_id": "TOM_TARGET_SPOT", "disease_name": "Target Spot", "category": "fungal", "description": "Brown lesions with concentric target-like rings and yellow halo"},
+    {"label_id": "TOM_YELLOW_LEAF_CURL", "disease_name": "Yellow Leaf Curl Virus", "category": "viral", "description": "Upward curling leaflets, yellow margins, stunted growth"},
     {"label_id": "TOM_BLOSSOM_ROT", "disease_name": "Blossom End Rot", "category": "nutrient", "description": "Calcium deficiency, dark sunken fruit bottom"},
     {"label_id": "TOM_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
     {"label_id": "TOM_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}

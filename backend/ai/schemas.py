@@ -60,6 +60,13 @@ class AnalysisResult(BaseModel):
     urgency_level: Urgency = Urgency.medium
     visual_evidence: Optional[str] = None
 
+    # Explainability (local CNN only — the hosted model exposes no activations).
+    # Base64 PNG of the Grad-CAM overlay showing which pixels drove the label.
+    heatmap_png_b64: Optional[str] = None
+    # Share of the image above half-peak activation. Near 1.0 means the model
+    # responded to the whole frame rather than a lesion — treat as a weak signal.
+    heatmap_focus: Optional[float] = None
+
     # Guidance
     advice: Optional[AdviceBlock] = None
     message: Optional[str] = None
