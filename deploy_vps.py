@@ -41,22 +41,31 @@ def main():
     print(f"Target VPS: {user}@{ip}:{port}")
     print("=====================================================================")
     
-    # Step 1: Create remote directory
-    mkdir_cmd = f"ssh -o StrictHostKeyChecking=no -p {port} {user}@{ip} mkdir -p {remote_dir}"
+    # Step 1: Create remote directory structure
+    mkdir_cmd = f"ssh -o StrictHostKeyChecking=no -p {port} {user}@{ip} 'mkdir -p {remote_dir}/data/uploads/images {remote_dir}/data/uploads/speech'"
     run_command_with_password(mkdir_cmd, password)
     
-    # Step 2: SCP files to remote directory
-    files_to_send = [
-        "backend", "config", "data", "docs", "frontend", "src", "tools",
+    # Step 2a: SCP main project files to remote root directory
+    main_files = [
+        "backend", "config", "docs", "frontend", "src", "tools",
         "Dockerfile", "docker-compose.yml", "nginx.conf", "requirements.txt",
         "requirements-ml.txt", "start.sh", ".env", "agridoctor.cloud.conf"
     ]
+    valid_main = [f for f in main_files if os.path.exists(f)]
+    main_str = " ".join(valid_main)
     
-    valid_files = [f for f in files_to_send if os.path.exists(f)]
-    files_str = " ".join(valid_files)
+    scp_main_cmd = f"scp -o StrictHostKeyChecking=no -P {port} -r {main_str} {user}@{ip}:{remote_dir}/"
+    run_command_with_password(scp_main_cmd, password, timeout=300)
+
+    # Step 2b: SCP specific data files to remote data/ directory
+    data_files = [
+        "data/taxonomy.json", "data/schemas", "data/instruction_data", "data/models"
+    ]
+    valid_data = [f for f in data_files if os.path.exists(f)]
+    data_str = " ".join(valid_data)
     
-    scp_cmd = f"scp -o StrictHostKeyChecking=no -P {port} -r {files_str} {user}@{ip}:{remote_dir}/"
-    run_command_with_password(scp_cmd, password, timeout=600)
+    scp_data_cmd = f"scp -o StrictHostKeyChecking=no -P {port} -r {data_str} {user}@{ip}:{remote_dir}/data/"
+    run_command_with_password(scp_data_cmd, password, timeout=300)
     
     # Step 3: Run Docker Compose on VPS
     ssh_cmd = f"ssh -o StrictHostKeyChecking=no -p {port} {user}@{ip}"
