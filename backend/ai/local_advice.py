@@ -274,6 +274,241 @@ _ADVICE: dict[str, dict] = {
         "help": ["Lesions reach the ear leaf during grain fill."],
     },
     "MAIZE_HEALTHY": {"healthy": True, "crop": "maize"},
+
+    # --- Rice -----------------------------------------------------------------
+    "RICE_BLAST": {
+        "severity": 0.8,
+        "urgency": Urgency.high,
+        "summary": "Rice blast (Magnaporthe oryzae) — spindle-shaped lesions with grey centres; the most damaging rice disease worldwide.",
+        "now": [
+            "Apply a labelled blast fungicide (tricyclazole or a strobilurin) promptly if lesions are spreading.",
+            "Drain the field briefly if continuously flooded, and avoid further nitrogen for now — lush growth worsens blast.",
+            "Remove and destroy heavily infected tillers.",
+        ],
+        "prevention": [
+            "Grow blast-resistant varieties where available.",
+            "Split nitrogen applications instead of one heavy dose.",
+            "Avoid dense seeding; keep the canopy open.",
+        ],
+        "help": ["Neck or panicle lesions appear — neck blast can cause near-total yield loss."],
+    },
+    "RICE_BROWN_SPOT": {
+        "severity": 0.55,
+        "summary": "Brown spot (Bipolaris oryzae) — many small oval brown spots; often a sign of nutrient-poor or drought-stressed soil.",
+        "now": [
+            "Correct underlying nutrient deficiency, especially potassium; a soil test helps.",
+            "Apply a labelled fungicide if the flag leaf and panicle are threatened.",
+            "Maintain even, adequate water — brown spot worsens under drought stress.",
+        ],
+        "prevention": [
+            "Use certified clean seed; treat seed before sowing.",
+            "Keep balanced fertility, particularly potassium and silicon.",
+        ],
+        "help": ["Spots reach the flag leaf or grains discolour."],
+    },
+    "RICE_BACT_BLIGHT": {
+        "severity": 0.75,
+        "urgency": Urgency.high,
+        "summary": "Bacterial leaf blight (Xanthomonas oryzae) — yellow-to-white lesions spreading from leaf tips and margins; bacterial, so fungicides do not control it.",
+        "now": [
+            "Drain the field to reduce spread; the bacterium moves in water.",
+            "Stop nitrogen top-dressing until the outbreak subsides.",
+            "Remove and destroy the worst-affected plants and nearby weed hosts.",
+        ],
+        "prevention": [
+            "Plant resistant varieties and certified clean seed.",
+            "Avoid clipping seedling tips at transplant, which spreads the bacterium.",
+            "Manage water so fields are not continuously deeply flooded.",
+        ],
+        "help": ["A large share of the crop wilts (the 'kresek' seedling stage) or lesions spread rapidly."],
+    },
+    "RICE_SHEATH_BLIGHT": {
+        "severity": 0.6,
+        "summary": "Sheath blight (Rhizoctonia solani) — oval greenish-grey lesions on leaf sheaths near the waterline, spreading upward in dense canopies.",
+        "now": [
+            "Apply a labelled fungicide (a strobilurin or validamycin) if lesions climb toward the upper leaves.",
+            "Avoid further nitrogen; dense lush growth drives this disease.",
+        ],
+        "prevention": [
+            "Widen spacing to open the canopy and lower humidity.",
+            "Split nitrogen rather than a single heavy application.",
+            "Remove infected stubble after harvest.",
+        ],
+        "help": ["Lesions reach the flag leaf during grain filling."],
+    },
+    "RICE_HEALTHY": {"healthy": True, "crop": "rice"},
+
+    # --- Chili ----------------------------------------------------------------
+    "CHILI_POWDERY": {
+        "severity": 0.5,
+        "summary": "Powdery mildew (Leveillula taurica) — white powdery patches, often on the underside, with yellow blotches above.",
+        "now": [
+            "Apply a labelled fungicide (sulphur, potassium bicarbonate, or a systemic) — treat leaf undersides.",
+            "Improve airflow and reduce shade around plants.",
+        ],
+        "prevention": [
+            "Avoid dense planting; keep foliage dry.",
+            "Scout leaf undersides weekly in warm, humid weather.",
+        ],
+        "help": ["Defoliation exposes fruit to sunscald."],
+    },
+    "CHILI_THRIPS": {
+        "severity": 0.5,
+        "summary": "Thrips / mite damage — silvery scarring and upward leaf curl; thrips also transmit viruses.",
+        "now": [
+            "Apply insecticidal soap, neem, or a labelled insecticide, repeating after 5-7 days.",
+            "Use blue sticky traps to monitor and reduce numbers.",
+            "Remove severely curled growing tips.",
+        ],
+        "prevention": [
+            "Control weeds that harbour thrips.",
+            "Inspect new growth weekly, especially in hot dry spells.",
+        ],
+        "help": ["Curling and stunting persist after treatment — check for virus transmission."],
+    },
+    "CHILI_CERCOSPORA": {
+        "severity": 0.5,
+        "summary": "Cercospora leaf spot — circular spots with pale grey centres and dark rings ('frog-eye'), causing leaf drop.",
+        "now": [
+            "Remove affected leaves and apply a labelled fungicide (chlorothalonil or copper).",
+            "Avoid overhead watering; keep foliage dry.",
+        ],
+        "prevention": [
+            "Rotate crops and clear debris after harvest.",
+            "Space plants for airflow.",
+        ],
+        "help": ["Heavy leaf drop exposes fruit to sunscald."],
+    },
+    "CHILI_HEALTHY": {"healthy": True, "crop": "chili"},
+
+    # --- Cucumber -------------------------------------------------------------
+    "CUC_DOWNY": {
+        "severity": 0.75,
+        "urgency": Urgency.high,
+        "summary": "Downy mildew (Pseudoperonospora cubensis) — angular yellow patches bounded by leaf veins, grey mould beneath; spreads fast in humid weather.",
+        "now": [
+            "Apply a labelled downy-mildew fungicide promptly — this disease moves quickly.",
+            "Improve airflow and avoid overhead irrigation.",
+            "Remove the most affected leaves.",
+        ],
+        "prevention": [
+            "Grow resistant varieties where available.",
+            "Water early in the day so foliage dries fast.",
+            "Scout daily during warm, humid spells.",
+        ],
+        "help": ["Yellowing spreads rapidly across the canopy despite treatment."],
+    },
+    "CUC_ANTHRAC": {
+        "severity": 0.6,
+        "summary": "Anthracnose (Colletotrichum) — brown-to-tan leaf spots that tear out, and sunken fruit lesions.",
+        "now": [
+            "Remove affected leaves and fruit; apply a labelled fungicide (chlorothalonil).",
+            "Stop overhead watering and avoid working among wet vines.",
+        ],
+        "prevention": [
+            "Use clean seed and rotate away from cucurbits for two years.",
+            "Trellis vines to keep foliage and fruit off the soil.",
+        ],
+        "help": ["Fruit lesions appear — marketable yield is at risk."],
+    },
+    "CUC_BACT_WILT": {
+        "severity": 0.85,
+        "urgency": Urgency.high,
+        "summary": "Bacterial wilt (Erwinia tracheiphila) — sudden wilting of leaves and runners, spread by cucumber beetles. Infected plants cannot be cured.",
+        "now": [
+            "Remove and destroy wilting plants — they will not recover and are a source of spread.",
+            "Control cucumber beetles immediately (the vector) with a labelled insecticide or row covers.",
+            "Confirm by cutting a wilted stem: sticky white strands mean bacterial wilt.",
+        ],
+        "prevention": [
+            "Control cucumber beetles from seedling emergence.",
+            "Use row covers until flowering; grow tolerant varieties.",
+        ],
+        "help": ["Several plants wilt — the beetle vector is active and needs urgent control."],
+    },
+    "CUC_GUMMY": {
+        "severity": 0.65,
+        "summary": "Gummy stem blight (Didymella bryoniae) — brown leaf lesions and dark gummy cankers on stems.",
+        "now": [
+            "Apply a labelled fungicide; remove and destroy affected vines.",
+            "Avoid overhead irrigation and reduce leaf wetness.",
+        ],
+        "prevention": [
+            "Use clean seed and a 2-year cucurbit rotation.",
+            "Improve airflow; remove crop debris after harvest.",
+        ],
+        "help": ["Stem cankers girdle the main stem, collapsing the plant."],
+    },
+    "CUC_HEALTHY": {"healthy": True, "crop": "cucumber"},
+
+    # --- Eggplant -------------------------------------------------------------
+    "EGG_LEAF_SPOT": {
+        "severity": 0.5,
+        "summary": "Cercospora leaf spot — angular to circular grey-brown spots with concentric rings, causing leaf drop.",
+        "now": [
+            "Remove affected leaves and apply a labelled fungicide (chlorothalonil or copper).",
+            "Avoid overhead watering; improve airflow.",
+        ],
+        "prevention": [
+            "Rotate away from eggplant, tomato and pepper for two years.",
+            "Clear debris after harvest; stake plants off the soil.",
+        ],
+        "help": ["Heavy defoliation exposes fruit to sunscald."],
+    },
+    "EGG_FLEA_BEETLE": {
+        "severity": 0.5,
+        "summary": "Flea beetle damage — many small round 'shot-hole' punctures; seedlings are most at risk.",
+        "now": [
+            "Apply a labelled insecticide or spinosad if damage is heavy on young plants.",
+            "Use row covers on seedlings; dust with kaolin clay as a deterrent.",
+        ],
+        "prevention": [
+            "Protect transplants early with covers until established.",
+            "Clear weeds and debris where beetles overwinter.",
+        ],
+        "help": ["Seedlings are being defoliated faster than they can grow."],
+    },
+    "EGG_VERTICILLIUM": {
+        "severity": 0.75,
+        "urgency": Urgency.high,
+        "summary": "Verticillium wilt — yellowing and wilting, often one-sided, from a soil fungus that blocks the plant's water vessels. There is no in-season cure.",
+        "now": [
+            "Remove and destroy severely wilted plants; the pathogen is soil-borne and persistent.",
+            "Keep remaining plants evenly watered to reduce stress; do not overwater.",
+        ],
+        "prevention": [
+            "Use a long rotation (4+ years) away from eggplant, tomato, potato and pepper.",
+            "Grow grafted or tolerant varieties on infested land.",
+        ],
+        "help": ["Wilting spreads to several plants — the soil is likely infested and rotation is needed."],
+    },
+    "EGG_POWDERY": {
+        "severity": 0.5,
+        "summary": "Powdery mildew — white powdery coating on the upper leaf surface, reducing vigour and yield.",
+        "now": [
+            "Apply a labelled fungicide (sulphur or potassium bicarbonate).",
+            "Improve airflow and reduce shading.",
+        ],
+        "prevention": [
+            "Space plants adequately; scout weekly in warm weather.",
+        ],
+        "help": ["Coating covers most of the canopy despite treatment."],
+    },
+    "EGG_MOSAIC": {
+        "severity": 0.7,
+        "urgency": Urgency.high,
+        "summary": "Mosaic virus — mottled light and dark green, puckered distorted leaves. Infected plants cannot be cured.",
+        "now": [
+            "Remove and destroy infected plants; wash hands and disinfect tools before touching healthy ones.",
+            "Control aphids, which spread many mosaic viruses.",
+        ],
+        "prevention": [
+            "Use clean seed and disinfect tools between plants.",
+            "Control weeds that act as a virus reservoir.",
+        ],
+        "help": ["Several plants show symptoms — find and cut the transmission route."],
+    },
+    "EGG_HEALTHY": {"healthy": True, "crop": "eggplant"},
 }
 
 _HEALTHY_TEMPLATE = {
@@ -297,25 +532,45 @@ def has_advice(label_id: str) -> bool:
 
 def severity_for(label_id: str) -> float:
     """Curated severity for a label (0.0 healthy .. 1.0 crop-threatening)."""
+    if label_id.endswith("_HEALTHY"):
+        return 0.0
     entry = _ADVICE.get(label_id)
-    if not entry or entry.get("healthy"):
+    if entry is None:
+        # A disease we have no curated entry for: treat as a genuine but
+        # moderate condition, never as harmless (0.0 is reserved for healthy).
+        return 0.5
+    if entry.get("healthy"):
         return 0.0
     return float(entry.get("severity", 0.5))
 
 
 def urgency_for(label_id: str) -> Urgency:
-    entry = _ADVICE.get(label_id)
-    if not entry or entry.get("healthy"):
+    if label_id.endswith("_HEALTHY"):
         return Urgency.low
-    if "urgency" in entry:
+    entry = _ADVICE.get(label_id)
+    if entry and "urgency" in entry:
         return entry["urgency"]
     return Urgency.high if severity_for(label_id) > 0.7 else Urgency.medium
+
+
+def _healthy_advice(label_id: str) -> AdviceBlock:
+    crop = (label_meta(label_id) or {}).get("crop") or "plant"
+    return AdviceBlock(
+        summary=_HEALTHY_TEMPLATE["summary"].format(crop=crop),
+        what_to_do_now=list(_HEALTHY_TEMPLATE["now"]),
+        prevention=list(_HEALTHY_TEMPLATE["prevention"]),
+        when_to_get_help=list(_HEALTHY_TEMPLATE["help"]),
+    )
 
 
 def advice_for(label_id: str) -> Optional[AdviceBlock]:
     """Curated advice for a CNN-predictable label, or None if not covered."""
     entry = _ADVICE.get(label_id)
     if entry is None:
+        # Any *_HEALTHY label gets the healthy template even without an explicit
+        # entry, so newly added crops need no boilerplate healthy record.
+        if label_id.endswith("_HEALTHY"):
+            return _healthy_advice(label_id)
         return None
 
     if entry.get("healthy"):

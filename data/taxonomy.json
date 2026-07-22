@@ -48,6 +48,7 @@
     {"label_id": "CHILI_LEAF_CURL", "disease_name": "Leaf Curl Virus", "category": "viral", "description": "Leaf curling, puckering, stunted growth"},
     {"label_id": "CHILI_POWDERY", "disease_name": "Powdery Mildew", "category": "fungal", "description": "White powdery coating on leaves"},
     {"label_id": "CHILI_THRIPS", "disease_name": "Thrips Damage", "category": "pest", "description": "Silvery streaks, distorted leaves"},
+    {"label_id": "CHILI_CERCOSPORA", "disease_name": "Cercospora Leaf Spot", "category": "fungal", "description": "Circular spots with pale grey centres and dark margins"},
     {"label_id": "CHILI_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
     {"label_id": "CHILI_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
   ],
@@ -58,6 +59,8 @@
     {"label_id": "CUC_MOSAIC", "disease_name": "Cucumber Mosaic Virus", "category": "viral", "description": "Mottled leaves, distorted fruit"},
     {"label_id": "CUC_ANTHRAC", "disease_name": "Anthracnose", "category": "fungal", "description": "Circular tan spots with dark margins"},
     {"label_id": "CUC_APHIDS", "disease_name": "Aphid Damage", "category": "pest", "description": "Curled leaves, sooty mold"},
+    {"label_id": "CUC_BACT_WILT", "disease_name": "Bacterial Wilt", "category": "bacterial", "description": "Sudden wilting of leaves and runners, sticky sap when cut"},
+    {"label_id": "CUC_GUMMY", "disease_name": "Gummy Stem Blight", "category": "fungal", "description": "Brown leaf lesions and gummy dark cankers on stems"},
     {"label_id": "CUC_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
     {"label_id": "CUC_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
   ],
@@ -76,6 +79,8 @@
     {"label_id": "EGG_LEAF_SPOT", "disease_name": "Cercospora Leaf Spot", "category": "fungal", "description": "Circular gray-brown spots with concentric rings on leaves"},
     {"label_id": "EGG_FLEA_BEETLE", "disease_name": "Flea Beetle Damage", "category": "pest", "description": "Many small round shot-holes in leaves"},
     {"label_id": "EGG_MITES", "disease_name": "Spider Mites", "category": "pest", "description": "Fine stippling, bronzing and webbing on leaves"},
+    {"label_id": "EGG_POWDERY", "disease_name": "Powdery Mildew", "category": "fungal", "description": "White powdery coating on the upper leaf surface"},
+    {"label_id": "EGG_MOSAIC", "disease_name": "Mosaic Virus", "category": "viral", "description": "Mottled light and dark green pattern, puckered distorted leaves"},
     {"label_id": "EGG_HEALTHY", "disease_name": "Healthy", "category": "healthy", "description": "No visible disease symptoms"},
     {"label_id": "EGG_UNKNOWN", "disease_name": "Unknown/Other", "category": "unknown", "description": "Unclassifiable condition"}
   ],

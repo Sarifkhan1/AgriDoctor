@@ -67,6 +67,53 @@ MAP_RULES = [
     (("corn", "healthy"), "MAIZE_HEALTHY"),
 ]
 
+# Additional crops that PlantVillage does not cover, pulled from the Project-AgML
+# collection (one consistent source, which matters: mixing many corpora with
+# different backgrounds invites the model to learn "which dataset" instead of
+# "which disease"). Each entry maps the dataset's own class name to an AgriDoctor
+# taxonomy label. Classes we deliberately DROP are set to None: fruit-only images
+# (this is a leaf diagnostic) and vague labels like "nutritional" that are not a
+# named disease. A dropped class is skipped, not folded into another.
+AGML_SOURCES = {
+    "Project-AgML/rice_leaf_disease_classification": {
+        "Leaf_Blast": "RICE_BLAST",
+        "Brown_Spot": "RICE_BROWN_SPOT",
+        "Bacterial_Leaf_Blight": "RICE_BACT_BLIGHT",
+        "Sheath_Blight": "RICE_SHEATH_BLIGHT",
+        "Healthy_Rice_Leaf": "RICE_HEALTHY",
+        "Leaf_Scald": None,  # no clean taxonomy match; drop rather than mislabel
+    },
+    "Project-AgML/COLD_chili_leaf_disease_classification": {
+        "healthy": "CHILI_HEALTHY",
+        "powdery mildew": "CHILI_POWDERY",
+        "mites_and_trips": "CHILI_THRIPS",
+        "cercospora": "CHILI_CERCOSPORA",
+        "nutritional": None,  # deficiency, not a disease
+    },
+    "Project-AgML/cucumber_disease_classification": {
+        "Anthracnose": "CUC_ANTHRAC",
+        "Downy_Mildew": "CUC_DOWNY",
+        "Fresh_Leaf": "CUC_HEALTHY",
+        "Bacterial_Wilt": "CUC_BACT_WILT",
+        "Gummy_Stem_Blight": "CUC_GUMMY",
+        "Belly_Rot": None,          # fruit
+        "Pythium_Fruit_Rot": None,  # fruit
+        "Fresh_Cucumber": None,     # fruit
+    },
+    "Project-AgML/eggplant_leaf_disease_classification": {
+        "Cercospora Leaf Spot": "EGG_LEAF_SPOT",
+        "Flea Beetles": "EGG_FLEA_BEETLE",
+        "Fresh Eggplant Leaf": "EGG_HEALTHY",
+        "Leaf Wilt": "EGG_VERTICILLIUM",
+        "Powdery Mildew": "EGG_POWDERY",
+        "Tobacco Mosaic Virus": "EGG_MOSAIC",
+        "Aphids": None,               # limit class count
+        "Phytophthora Blight": None,  # limit class count
+        "Defect Eggplant": None,      # fruit
+        "Fresh Eggplant": None,       # fruit
+    },
+}
+
 
 def map_class(raw: str):
     """Return the in-scope label for a raw class string, or None if out of scope."""
@@ -178,7 +225,40 @@ def main():
         len(buckets[OOS_OTHER_PLANT]),
     )
 
-    # --- 2. tiny-imagenet: not-a-plant rejects --------------------------------
+    # --- 2. Project-AgML: crops PlantVillage does not cover --------------------
+    # rice, chili, cucumber, eggplant. Loaded by full download (streaming these
+    # was unreliable), mapped per AGML_SOURCES, fruit/vague classes dropped.
+    for name, mapping in AGML_SOURCES.items():
+        crop_tag = name.split("/")[-1].split("_")[0]
+        log.info("loading %s ...", name)
+        try:
+            ds = load_dataset(name, split="train")
+        except Exception:
+            log.warning("could not load %s — skipping this crop", name, exc_info=True)
+            continue
+        label_names = None
+        try:
+            label_names = ds.features["label"].names
+        except Exception:
+            pass
+        added = 0
+        for row in ds:
+            raw = row.get("label")
+            if label_names is not None and isinstance(raw, int):
+                raw = label_names[raw]
+            target = mapping.get(raw, "__unmapped__")
+            if target is None:
+                continue  # deliberately dropped (fruit / vague)
+            if target == "__unmapped__":
+                continue  # class we didn't anticipate; ignore rather than guess
+            if args.per_class and len(buckets[target]) >= args.per_class:
+                continue
+            buckets[target].append(row["image"])
+            added += 1
+        log.info("  %s -> %d images across %d classes", crop_tag, added,
+                 len({v for v in mapping.values() if v}))
+
+    # --- 3. tiny-imagenet: not-a-plant rejects --------------------------------
     log.info("loading zh-plus/tiny-imagenet ...")
     objects = load_dataset("zh-plus/tiny-imagenet", split="train", streaming=True)
     objects = objects.shuffle(seed=args.seed, buffer_size=10_000)
@@ -194,7 +274,8 @@ def main():
     labels = sorted(buckets.keys())
     manifest = {
         "sources": {
-            "in_scope + OOS_OTHER_PLANT": "minhhungg/plant-disease-dataset",
+            "tomato/potato/pepper/maize + OOS_OTHER_PLANT": "minhhungg/plant-disease-dataset",
+            "rice/chili/cucumber/eggplant": "Project-AgML/* (see AGML_SOURCES)",
             "OOS_NOT_PLANT": "zh-plus/tiny-imagenet",
         },
         "num_classes": len(labels),
