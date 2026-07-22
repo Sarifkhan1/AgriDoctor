@@ -139,25 +139,41 @@ def save_jpeg(img, dest: Path, size: int) -> bool:
         return False
 
 
-def write_split(buckets: dict, out_root: Path, ratios, size: int, rng) -> Counter:
-    """Stratify each label independently so every split sees every class."""
+def stage_image(img, staging: Path, label: str, idx: int, size: int) -> bool:
+    """Write one collected image straight to a per-label staging dir.
+
+    Streaming to disk as we go keeps peak memory flat regardless of corpus size —
+    the earlier approach held every PIL image in RAM and OOM-killed the process on
+    an 8GB machine once the corpus grew past ~45k images.
+    """
+    dest_dir = staging / label
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    return save_jpeg(img, dest_dir / f"{idx:06d}.jpg", size)
+
+
+def split_from_staging(staging: Path, out_root: Path, ratios, rng) -> Counter:
+    """Stratify each staged label independently into train/val/test on disk."""
+    import shutil as _sh
+
     counts = Counter()
-    for label, items in sorted(buckets.items()):
-        rng.shuffle(items)
-        n = len(items)
+    for label_dir in sorted(p for p in staging.iterdir() if p.is_dir()):
+        label = label_dir.name
+        files = sorted(label_dir.glob("*.jpg"))
+        rng.shuffle(files)
+        n = len(files)
         n_train = int(n * ratios[0])
         n_val = int(n * ratios[1])
         parts = {
-            "train": items[:n_train],
-            "val": items[n_train : n_train + n_val],
-            "test": items[n_train + n_val :],
+            "train": files[:n_train],
+            "val": files[n_train : n_train + n_val],
+            "test": files[n_train + n_val :],
         }
         for split, rows in parts.items():
             dest_dir = out_root / split / label
             dest_dir.mkdir(parents=True, exist_ok=True)
-            for i, img in enumerate(rows):
-                if save_jpeg(img, dest_dir / f"{i:06d}.jpg", size):
-                    counts[f"{split}/{label}"] += 1
+            for i, src in enumerate(rows):
+                _sh.move(str(src), str(dest_dir / f"{i:06d}.jpg"))
+                counts[f"{split}/{label}"] += 1
         log.info("%-22s n=%5d -> %s", label, n, {k: len(v) for k, v in parts.items()})
     return counts
 
@@ -191,7 +207,16 @@ def main():
             raise SystemExit(f"{out_root} exists — pass --force to rebuild")
         shutil.rmtree(out_root)
 
-    buckets = defaultdict(list)
+    # Images are streamed straight to this staging dir as they are collected, so
+    # only per-label counters live in memory. `counts[label]` tracks how many have
+    # been staged (used for the per-class caps and the early-stop check).
+    staging = out_root / "_staging"
+    staging.mkdir(parents=True, exist_ok=True)
+    counts: dict[str, int] = defaultdict(int)
+
+    def collect(img, label: str) -> None:
+        if stage_image(img, staging, label, counts[label], args.size):
+            counts[label] += 1
 
     # --- 1. PlantVillage: in-scope labels + other-plant rejects ----------------
     log.info("loading minhhungg/plant-disease-dataset ...")
@@ -203,38 +228,49 @@ def main():
     for row in plants:
         label = map_class(row["class"])
         if label is None:
-            if len(buckets[OOS_OTHER_PLANT]) >= oos_plant_cap:
+            if counts[OOS_OTHER_PLANT] >= oos_plant_cap:
                 continue
             label = OOS_OTHER_PLANT
-        elif args.per_class and len(buckets[label]) >= args.per_class:
+        elif args.per_class and counts[label] >= args.per_class:
             continue
-        buckets[label].append(row["image"])
+        collect(row["image"], label)
 
         # With every cap satisfied there is nothing left to collect — stop early
         # instead of decoding the remaining rows (matters for smoke runs).
-        if args.per_class and len(buckets[OOS_OTHER_PLANT]) >= oos_plant_cap:
-            if all(len(buckets[l]) >= args.per_class for l in all_in_scope):
+        if args.per_class and counts[OOS_OTHER_PLANT] >= oos_plant_cap:
+            if all(counts[l] >= args.per_class for l in all_in_scope):
                 log.info("all caps satisfied — stopping scan early")
                 break
 
-    in_scope = sum(v for k, v in ((k, len(v)) for k, v in buckets.items()) if k != OOS_OTHER_PLANT)
+    in_scope = sum(v for k, v in counts.items() if k != OOS_OTHER_PLANT)
     log.info(
         "plant dataset -> %d in-scope images across %d labels, %d other-plant rejects",
         in_scope,
-        len([k for k in buckets if k != OOS_OTHER_PLANT]),
-        len(buckets[OOS_OTHER_PLANT]),
+        len([k for k in counts if k != OOS_OTHER_PLANT]),
+        counts[OOS_OTHER_PLANT],
     )
 
     # --- 2. Project-AgML: crops PlantVillage does not cover --------------------
-    # rice, chili, cucumber, eggplant. Loaded by full download (streaming these
-    # was unreliable), mapped per AGML_SOURCES, fruit/vague classes dropped.
+    # rice, chili, cucumber, eggplant. Streamed (streaming=True) so the full
+    # image table is never held in memory, then mapped per AGML_SOURCES with
+    # fruit/vague classes dropped.
     for name, mapping in AGML_SOURCES.items():
         crop_tag = name.split("/")[-1].split("_")[0]
         log.info("loading %s ...", name)
-        try:
-            ds = load_dataset(name, split="train")
-        except Exception:
-            log.warning("could not load %s — skipping this crop", name, exc_info=True)
+        # Full download rather than streaming: streaming this collection hangs
+        # intermittently on shard fetches, and the memory pressure that first
+        # motivated streaming is gone now that images are staged straight to disk.
+        # Retry a few times because the shard downloads themselves are flaky.
+        ds = None
+        for attempt in range(4):
+            try:
+                ds = load_dataset(name, split="train")
+                break
+            except Exception:
+                log.warning("load attempt %d for %s failed", attempt + 1, name,
+                            exc_info=True)
+        if ds is None:
+            log.error("could not load %s after retries — skipping this crop", name)
             continue
         label_names = None
         try:
@@ -247,13 +283,11 @@ def main():
             if label_names is not None and isinstance(raw, int):
                 raw = label_names[raw]
             target = mapping.get(raw, "__unmapped__")
-            if target is None:
-                continue  # deliberately dropped (fruit / vague)
-            if target == "__unmapped__":
-                continue  # class we didn't anticipate; ignore rather than guess
-            if args.per_class and len(buckets[target]) >= args.per_class:
+            if target in (None, "__unmapped__"):
+                continue  # dropped (fruit/vague) or unanticipated class
+            if args.per_class and counts[target] >= args.per_class:
                 continue
-            buckets[target].append(row["image"])
+            collect(row["image"], target)
             added += 1
         log.info("  %s -> %d images across %d classes", crop_tag, added,
                  len({v for v in mapping.values() if v}))
@@ -263,15 +297,16 @@ def main():
     objects = load_dataset("zh-plus/tiny-imagenet", split="train", streaming=True)
     objects = objects.shuffle(seed=args.seed, buffer_size=10_000)
     for row in objects:
-        if len(buckets[OOS_NOT_PLANT]) >= args.oos_per_class:
+        if counts[OOS_NOT_PLANT] >= args.oos_per_class:
             break
-        buckets[OOS_NOT_PLANT].append(row["image"])
-    log.info("tiny-imagenet -> %d not-a-plant rejects", len(buckets[OOS_NOT_PLANT]))
+        collect(row["image"], OOS_NOT_PLANT)
+    log.info("tiny-imagenet -> %d not-a-plant rejects", counts[OOS_NOT_PLANT])
 
-    # --- 3. Stratified split + JPEG cache -------------------------------------
-    counts = write_split(buckets, out_root, (0.70, 0.15, 0.15), args.size, rng)
+    # --- 4. Stratified split from staging -------------------------------------
+    counts = split_from_staging(staging, out_root, (0.70, 0.15, 0.15), rng)
+    shutil.rmtree(staging, ignore_errors=True)
 
-    labels = sorted(buckets.keys())
+    labels = sorted({k.split("/", 1)[1] for k in counts})
     manifest = {
         "sources": {
             "tomato/potato/pepper/maize + OOS_OTHER_PLANT": "minhhungg/plant-disease-dataset",

@@ -12,7 +12,9 @@ data/agridoctor.db-*
 data/uploads/
 data/cache/
 data/dataset/
+data/dataset_v2/
 data/dataset_smoke/
+data/dataset_smoke2/
 data/raw_kaggle/
 # Model weights are large and rebuildable; the metrics they produce are the
 # evidence and are small, so those are tracked deliberately.
