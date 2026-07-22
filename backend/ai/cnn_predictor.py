@@ -306,7 +306,7 @@ def get_predictor(model_path: str = "", **kwargs) -> CNNPredictor:
             if _default_predictor is None:
                 if not model_path:
                     root = Path(__file__).resolve().parent.parent.parent
-                    model_path = str(root / "data" / "models" / "agridoctor_cnn.pt")
+                    model_path = str(root / "data" / "models" / "agridoctor_cnn_6crop.pt")
                 _default_predictor = CNNPredictor(model_path, **kwargs)
     return _default_predictor
 

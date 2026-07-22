@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # confident and in-scope. Everything else escalates. If the checkpoint is
     # missing the predictor reports unavailable and every request escalates, so a
     # fresh clone with no model still behaves correctly.
-    cnn_model_path: str = "data/models/agridoctor_cnn.pt"
+    cnn_model_path: str = "data/models/agridoctor_cnn_6crop.pt"
     # Confidence is post-temperature-scaling (calibrated), so this threshold means
     # what it says — unlike a raw softmax score.
     cnn_confidence_threshold: float = 0.75
