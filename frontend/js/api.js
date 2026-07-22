@@ -32,6 +32,12 @@ class APIClient {
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                this.logout();
+                if (typeof window.updateAuthUI === 'function') {
+                    window.updateAuthUI();
+                }
+            }
             const error = await response.json().catch(() => ({}));
             throw new Error(error.detail || `HTTP ${response.status}`);
         }
@@ -59,6 +65,12 @@ class APIClient {
         });
 
         if (!response.ok) {
+            if (response.status === 401) {
+                this.logout();
+                if (typeof window.updateAuthUI === 'function') {
+                    window.updateAuthUI();
+                }
+            }
             const error = await response.json().catch(() => ({}));
             throw new Error(error.detail || `Upload failed: HTTP ${response.status}`);
         }
@@ -85,6 +97,9 @@ class APIClient {
             body: JSON.stringify({ email, password, full_name: fullName })
         });
         this.setToken(data.access_token);
+        if (data.full_name) {
+            localStorage.setItem('user_fullname', data.full_name);
+        }
         return data;
     }
 
@@ -94,6 +109,9 @@ class APIClient {
             body: JSON.stringify({ email, password })
         });
         this.setToken(data.access_token);
+        if (data.full_name) {
+            localStorage.setItem('user_fullname', data.full_name);
+        }
         return data;
     }
 
@@ -103,6 +121,7 @@ class APIClient {
 
     logout() {
         this.setToken(null);
+        localStorage.removeItem('user_fullname');
     }
 
     isAuthenticated() {

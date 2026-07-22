@@ -413,9 +413,37 @@ function initAuth() {
 function showAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
 function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
 function logout() { api.logout(); updateAuthUI(); showPage('home'); }
-function updateAuthUI() {
+async function updateAuthUI() {
   const authBtn = document.getElementById('auth-btn');
+  const userDisplay = document.getElementById('user-display');
+  
   if (authBtn) authBtn.textContent = api.isAuthenticated() ? 'Logout' : 'Login';
+  
+  if (userDisplay) {
+    if (api.isAuthenticated()) {
+      let fullName = localStorage.getItem('user_fullname');
+      if (!fullName) {
+        try {
+          const me = await api.getMe();
+          if (me && me.full_name) {
+            fullName = me.full_name;
+            localStorage.setItem('user_fullname', fullName);
+          }
+        } catch (e) {
+          console.error("Failed to load user info", e);
+        }
+      }
+      if (fullName) {
+        userDisplay.textContent = fullName;
+        userDisplay.classList.remove('hidden');
+      } else {
+        userDisplay.classList.add('hidden');
+      }
+    } else {
+      userDisplay.classList.add('hidden');
+      userDisplay.textContent = '';
+    }
+  }
 }
 
 // ============================================================================
@@ -460,4 +488,5 @@ document.addEventListener('DOMContentLoaded', () => {
 Object.assign(window, {
   showPage, nextStep, prevStep, startNewDiagnosis, showAuthModal,
   closeAuthModal, closeCameraModal, closeImageModal, openImageModal, viewCase,
+  updateAuthUI,
 });

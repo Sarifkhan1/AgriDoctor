@@ -307,6 +307,24 @@ body {
   gap: var(--spacing-3);
 }
 
+.user-display {
+  font-weight: 500;
+  font-size: 0.9rem;
+  color: var(--color-gray-700);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  padding: 8px 16px;
+  border-radius: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  transition: all 0.3s ease;
+}
+
+.user-display.hidden {
+  display: none !important;
+}
+
 .theme-toggle-btn {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
