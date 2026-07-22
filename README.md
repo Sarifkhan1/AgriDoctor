@@ -457,14 +457,29 @@ PlantVillage weakness described below:
 - EMA weights, evaluated against the raw weights each epoch — whichever genuinely scores higher is saved
 - Temperature scaling fitted on validation, so the confidence the router thresholds is calibrated rather than the usual overconfident softmax
 
-⚠️ **The honest caveat, unchanged:** PlantVillage images are shot on plain
-backgrounds under even lighting. High validation accuracy on this data overstates
-field performance — this is the well-documented domain-shift problem, and no
-architecture change fixes it. `scripts/evaluate_cnn.py` therefore also runs an
-8-corruption robustness suite (blur, noise, occlusion, low resolution, …) and
-reports the clean-vs-corrupted gap explicitly, because that gap is the honest
-measure of what happens on a real phone photo in a field. It is also precisely
-why the hosted model is retained as the escalation tier.
+**Measured results** (7,109-image held-out test split, `data/models/eval_report.json`):
+
+| Metric | Value |
+| ------ | ----- |
+| Accuracy / macro-F1 | **0.9979 / 0.9976** |
+| Calibration error (ECE, post-scaling) | **0.0016** |
+| False-accept rate (out-of-scope → confident diagnosis) | **0.0006** |
+| OOD AUROC (in-scope vs out-of-scope) | **1.00** |
+| Median inference latency | **24 ms** |
+| Routing mix | 74% local diagnosis · 13% local reject · 13% escalate |
+
+At the default 0.75 threshold, ~87% of requests are resolved locally with no API
+call. The threshold sweep shows local coverage stays above 99% anywhere from 0.50
+to 0.90, so the operating point is not delicate.
+
+⚠️ **The honest caveat:** PlantVillage images are shot on plain backgrounds under
+even lighting, so 0.9979 is in-distribution accuracy and overstates field
+performance — the well-documented domain-shift problem, which no architecture
+change fixes. `scripts/evaluate_cnn.py` therefore also runs an 8-corruption
+robustness suite; measured mean accuracy under corruption is **0.9825** (worst
+case, heavy blur, **0.9223**). That clean-vs-corrupted gap is the honest measure
+of what a real phone photo costs, and it is precisely why the hosted model is
+retained as the escalation tier.
 
 ### Multimodal fusion ablation (real)
 

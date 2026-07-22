@@ -1,0 +1,335 @@
+{
+  "arch": "efficientnet_b0",
+  "dataset_root": "data/dataset",
+  "device": "mps",
+  "num_classes": 21,
+  "classes": [
+    "MAIZE_GLS",
+    "MAIZE_HEALTHY",
+    "MAIZE_NLB",
+    "MAIZE_RUST",
+    "OOS_NOT_PLANT",
+    "OOS_OTHER_PLANT",
+    "PEP_BACT_SPOT",
+    "PEP_HEALTHY",
+    "POT_EARLY_BLIGHT",
+    "POT_HEALTHY",
+    "POT_LATE_BLIGHT",
+    "TOM_BACL_SPOT",
+    "TOM_EARLY_BLIGHT",
+    "TOM_HEALTHY",
+    "TOM_LATE_BLIGHT",
+    "TOM_LEAF_MOLD",
+    "TOM_MOSAIC",
+    "TOM_SEPTORIA",
+    "TOM_SPIDER_MITES",
+    "TOM_TARGET_SPOT",
+    "TOM_YELLOW_LEAF_CURL"
+  ],
+  "train_images": 33079,
+  "val_images": 7083,
+  "epochs_run": 16,
+  "best_epoch": 16,
+  "val_accuracy": 0.9979,
+  "val_macro_f1": 0.9974,
+  "calibration": {
+    "temperature": 0.4464,
+    "ece_before": 0.1387,
+    "ece_after": 0.0013
+  },
+  "hyperparameters": {
+    "data": "data/dataset",
+    "arch": "efficientnet_b0",
+    "epochs": 16,
+    "warmup_epochs": 2,
+    "batch_size": 16,
+    "lr": 0.0003,
+    "head_lr": 0.001,
+    "weight_decay": 0.0001,
+    "dropout": 0.3,
+    "label_smoothing": 0.1,
+    "mixup": 0.2,
+    "cutmix": 1.0,
+    "ema_decay": 0.999,
+    "size": 224,
+    "workers": 2,
+    "patience": 5,
+    "init_from": "",
+    "out": "agridoctor_cnn.pt"
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train_loss": 2.1073,
+      "val_loss": 0.8018,
+      "val_accuracy": 0.8369,
+      "val_macro_f1": 0.8344,
+      "weights": "raw",
+      "lr": 0.001
+    },
+    {
+      "epoch": 2,
+      "train_loss": 2.02,
+      "val_loss": 0.7139,
+      "val_accuracy": 0.8616,
+      "val_macro_f1": 0.854,
+      "weights": "ema",
+      "lr": 0.001
+    },
+    {
+      "epoch": 3,
+      "train_loss": 1.5428,
+      "val_loss": 0.2378,
+      "val_accuracy": 0.9768,
+      "val_macro_f1": 0.9748,
+      "weights": "raw",
+      "lr": 0.0002962391868272725
+    },
+    {
+      "epoch": 4,
+      "train_loss": 1.3759,
+      "val_loss": 0.1997,
+      "val_accuracy": 0.99,
+      "val_macro_f1": 0.9885,
+      "weights": "ema",
+      "lr": 0.00028514533018536277
+    },
+    {
+      "epoch": 5,
+      "train_loss": 1.3024,
+      "val_loss": 0.2308,
+      "val_accuracy": 0.9936,
+      "val_macro_f1": 0.9925,
+      "weights": "ema",
+      "lr": 0.0002672747223702051
+    },
+    {
+      "epoch": 6,
+      "train_loss": 1.2644,
+      "val_loss": 0.2302,
+      "val_accuracy": 0.9938,
+      "val_macro_f1": 0.9926,
+      "weights": "ema",
+      "lr": 0.000243523470278811
+    },
+    {
+      "epoch": 7,
+      "train_loss": 1.2251,
+      "val_loss": 0.2174,
+      "val_accuracy": 0.9953,
+      "val_macro_f1": 0.9943,
+      "weights": "ema",
+      "lr": 0.00021508256086763417
+    },
+    {
+      "epoch": 8,
+      "train_loss": 1.1995,
+      "val_loss": 0.2053,
+      "val_accuracy": 0.9956,
+      "val_macro_f1": 0.9946,
+      "weights": "ema",
+      "lr": 0.00018337814009344787
+    },
+    {
+      "epoch": 9,
+      "train_loss": 1.1598,
+      "val_loss": 0.2082,
+      "val_accuracy": 0.9966,
+      "val_macro_f1": 0.9958,
+      "weights": "raw",
+      "lr": 0.00015000000000000066
+    },
+    {
+      "epoch": 10,
+      "train_loss": 1.1343,
+      "val_loss": 0.1833,
+      "val_accuracy": 0.9968,
+      "val_macro_f1": 0.996,
+      "weights": "ema",
+      "lr": 0.00011662185990655275
+    },
+    {
+      "epoch": 11,
+      "train_loss": 1.1256,
+      "val_loss": 0.1803,
+      "val_accuracy": 0.9969,
+      "val_macro_f1": 0.9963,
+      "weights": "ema",
+      "lr": 8.491743913236648e-05
+    },
+    {
+      "epoch": 12,
+      "train_loss": 1.1236,
+      "val_loss": 0.1734,
+      "val_accuracy": 0.9968,
+      "val_macro_f1": 0.9961,
+      "weights": "ema",
+      "lr": 5.647652972119027e-05
+    },
+    {
+      "epoch": 13,
+      "train_loss": 1.114,
+      "val_loss": 0.1737,
+      "val_accuracy": 0.997,
+      "val_macro_f1": 0.9964,
+      "weights": "ema",
+      "lr": 3.27252776297958e-05
+    },
+    {
+      "epoch": 14,
+      "train_loss": 1.1027,
+      "val_loss": 0.1838,
+      "val_accuracy": 0.9977,
+      "val_macro_f1": 0.9972,
+      "weights": "raw",
+      "lr": 1.4854669814637265e-05
+    },
+    {
+      "epoch": 15,
+      "train_loss": 1.0992,
+      "val_loss": 0.1873,
+      "val_accuracy": 0.9976,
+      "val_macro_f1": 0.9972,
+      "weights": "raw",
+      "lr": 3.7608131727264794e-06
+    },
+    {
+      "epoch": 16,
+      "train_loss": 1.0853,
+      "val_loss": 0.1588,
+      "val_accuracy": 0.9979,
+      "val_macro_f1": 0.9974,
+      "weights": "raw",
+      "lr": 0.0
+    }
+  ],
+  "per_class": {
+    "MAIZE_GLS": {
+      "precision": 0.9918,
+      "recall": 0.9797,
+      "f1": 0.9857,
+      "support": 246
+    },
+    "MAIZE_HEALTHY": {
+      "precision": 0.9964,
+      "recall": 1.0,
+      "f1": 0.9982,
+      "support": 278
+    },
+    "MAIZE_NLB": {
+      "precision": 0.9827,
+      "recall": 0.993,
+      "f1": 0.9878,
+      "support": 286
+    },
+    "MAIZE_RUST": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 285
+    },
+    "OOS_NOT_PLANT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 900
+    },
+    "OOS_OTHER_PLANT": {
+      "precision": 1.0,
+      "recall": 0.9989,
+      "f1": 0.9994,
+      "support": 900
+    },
+    "PEP_BACT_SPOT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 283
+    },
+    "PEP_HEALTHY": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 298
+    },
+    "POT_EARLY_BLIGHT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 273
+    },
+    "POT_HEALTHY": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 268
+    },
+    "POT_LATE_BLIGHT": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 289
+    },
+    "TOM_BACL_SPOT": {
+      "precision": 0.9961,
+      "recall": 1.0,
+      "f1": 0.998,
+      "support": 255
+    },
+    "TOM_EARLY_BLIGHT": {
+      "precision": 0.9931,
+      "recall": 1.0,
+      "f1": 0.9965,
+      "support": 288
+    },
+    "TOM_HEALTHY": {
+      "precision": 0.9965,
+      "recall": 1.0,
+      "f1": 0.9983,
+      "support": 288
+    },
+    "TOM_LATE_BLIGHT": {
+      "precision": 1.0,
+      "recall": 0.9892,
+      "f1": 0.9946,
+      "support": 277
+    },
+    "TOM_LEAF_MOLD": {
+      "precision": 0.9958,
+      "recall": 1.0,
+      "f1": 0.9979,
+      "support": 238
+    },
+    "TOM_MOSAIC": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 268
+    },
+    "TOM_SEPTORIA": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 334
+    },
+    "TOM_SPIDER_MITES": {
+      "precision": 0.9924,
+      "recall": 1.0,
+      "f1": 0.9962,
+      "support": 261
+    },
+    "TOM_TARGET_SPOT": {
+      "precision": 1.0,
+      "recall": 0.9854,
+      "f1": 0.9926,
+      "support": 274
+    },
+    "TOM_YELLOW_LEAF_CURL": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0,
+      "support": 294
+    }
+  },
+  "wall_clock_seconds": 20568.6
+}

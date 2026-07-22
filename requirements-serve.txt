@@ -1,0 +1,19 @@
+# AgriDoctor AI — production serving dependencies (API + local CNN inference).
+#
+# This is what the deployed container installs. It is requirements.txt plus the
+# minimum needed to run the trained classifier — NOT requirements-ml.txt, which
+# additionally pulls transformers, streamlit, whisper, librosa and the rest of
+# the training/annotation toolchain that the server never uses.
+#
+# IMPORTANT: install torch from the CPU-only index, e.g.
+#     pip install -r requirements-serve.txt \
+#         --extra-index-url https://download.pytorch.org/whl/cpu
+# The default PyPI wheels bundle CUDA and are ~2.5GB; the CPU wheels are ~200MB.
+# A VPS has no GPU, so the CUDA payload is pure cost — it is the difference
+# between an image that fits on a small instance and one that does not.
+# The Dockerfile passes this flag for you.
+
+-r requirements.txt
+
+torch>=2.1.0
+torchvision>=0.16.0

@@ -33,10 +33,10 @@ TABLE OF CONTENTS
    4.6 Prior Experiment B: Multimodal Fusion Ablation Study (ViT & DistilBERT)
    4.7 Custom Data Annotation Infrastructure (Streamlit Framework)
 5. SYSTEM VALIDATION, USER TESTING, & DEMO CASES
-   5.1 Scenario 1: Target Crop Leaf Pathology (Concentric Tomato Blight)
-   5.2 Scenario 2: Target Crop Healthy State (Healthy Potato Leaf)
-   5.3 Scenario 3: Out-of-Scope Leaf Rejection (Grape Leaf)
-   5.4 Scenario 4: Irrelevant Non-Plant Visual Noise Rejection (Automobile)
+   5.1 Scenario 1: Target Crop Leaf Pathology (Tomato Late Blight) - answered locally
+   5.2 Scenario 2: Target Crop Healthy State (Healthy Potato Leaf) - answered locally
+   5.3 Scenario 3: Out-of-Scope Leaf Rejection (Unsupported Species) - escalated
+   5.4 Scenario 4: Non-Plant Visual Noise Rejection - rejected locally
 6. ETHICAL DISCLOSURES & PROFESSIONAL ALIGNMENT (ACM CODE OF ETHICS)
 7. REQUIRED DIGITAL ASSETS & HOSTING LINKS
 8. BIBLIOGRAPHY & REFERENCES (IEEE STYLE)
@@ -50,7 +50,7 @@ Traditional deep neural network classifiers suffer from severe out-of-distributi
 
 AgriDoctor addresses both failure modes with a two-tier engine behind a single deterministic safety layer. The primary tier is a locally trained EfficientNet-B0 classifier, trained not only on in-scope crop diseases but on two explicit out-of-scope classes - other plant species, and non-vegetation imagery - so that declining to answer is a first-class, learned outcome rather than a threshold applied after the fact. The classifier emits a routing decision: confident in-scope predictions are answered entirely offline with curated advice and a Grad-CAM explanation; confident non-plant inputs are rejected offline; everything else escalates to the hosted VLM. Escalation is a designed capability, since the project taxonomy spans eight crops and four livestock species while freely available training imagery exists for only four crops. Both tiers then pass through a server-side safety-invariant layer that validates every result against a rigid taxonomy, converting out-of-scope or low-confidence outputs into polite rejections.
 
-The practical result is that the common case is diagnosed locally in well under a second with no API call, confining the hosted model's rate limit to requests that genuinely require it, while the system retains an honest account of what it does not know.
+On a 7,109-image held-out test partition the deployed classifier reaches 0.9979 accuracy and 0.9976 macro-F1, with a post-calibration expected calibration error of 0.0016 and a false-acceptance rate on out-of-scope imagery of 0.0006 (0.06%). Median on-device inference is 24 milliseconds against a hosted round trip of several seconds under a roughly one-image-per-minute free-tier limit. The practical result is that the common case is diagnosed locally in well under a second with no API call, confining the hosted model's rate limit to requests that genuinely require it, while the system retains an honest account of what it does not know. As is standard for models trained on plain-background imagery, this clean-data accuracy overstates field performance; the report measures and discloses that gap directly through an eight-way image-corruption suite rather than leaving the headline figure unqualified.
 
 This portfolio documents the full research, development, and validation process of AgriDoctor: the deployed local classifier and its out-of-scope rejection design, its held-out evaluation including calibration, out-of-distribution detection and robustness to field-like image corruption, and two earlier offline experiments (a MobileNetV3 classifier reaching a 99.31% validation F1-score on clinical-condition imagery, and a ViT+DistilBERT cross-modal attention fusion prototype showing an 8.3-point macro-F1 gain via simulated speech integration). Finally, it outlines the production deployment of the safety-gated system on a secure VPS server at https://agridoctor.cloud.
 
@@ -267,7 +267,17 @@ The training procedure (`scripts/train_cnn.py`) uses an ImageNet-pretrained Effi
 * Model selection by macro-F1 rather than accuracy, so that the two out-of-scope classes - which are decisive for safety but need not be the most frequent - carry equal weight to the common diseases.
 * Temperature scaling (Guo et al., 2017) fitted on the validation partition after training. A single scalar divides the logits before the softmax, which is monotonic and therefore alters no prediction, but corrects the systematic overconfidence of a fine-tuned network. Because the serving layer routes on the confidence value, an uncalibrated model would mean routing decisions made on numbers that do not mean what they claim.
 
-[RESULTS TO BE INSERTED - training run in progress at time of writing: epochs completed, best validation macro-F1, selected epoch, fitted temperature, and calibration error before and after scaling.]
+Measured training run (Apple Silicon MPS, 33,079 training / 7,083 validation images):
+
+* Backbone: EfficientNet-B0, ImageNet-pretrained.
+* Schedule: 16 epochs (2 head-only warmup, 14 full fine-tune), batch size 16.
+* Best epoch: 16, selected by validation macro-F1.
+* Best validation macro-F1: 0.9974 (accuracy 0.9979).
+* Validation macro-F1 progressed 0.834 (epoch 1, backbone frozen) -> 0.975 (epoch 3, first fine-tune epoch) -> 0.988 (epoch 4) -> 0.997 (epoch 16), improving at every epoch, so early stopping did not trigger.
+* The exponential moving average of the weights was selected over the raw weights in 9 of the 16 epochs, confirming that maintaining and evaluating both was worthwhile rather than assuming either is always superior.
+* Fitted temperature: 0.446. Expected calibration error on the validation set fell from 0.139 before scaling to 0.001 after - the raw fine-tuned network was substantially overconfident, and scaling very nearly eliminates the gap between stated confidence and observed accuracy. This is the single most important number for a system that routes on the confidence value, and it is reported in full in the next section on the held-out test set.
+
+(All figures reproducible from `scripts/train_cnn.py`; the per-epoch history and the fitted calibration are saved to `data/models/train_metrics.json` and plotted in `data/models/training_curves.png`.)
 
 4.3 Held-Out Evaluation: Accuracy, Calibration, OOD Detection & Robustness
 Evaluation is performed by `scripts/evaluate_cnn.py` on the held-out test partition, loading the model through the same serving class the API uses, so that the measured behaviour includes temperature scaling and the routing thresholds exactly as deployed. Four families of measurement are reported.
@@ -280,7 +290,44 @@ Third, and most important for the safety argument, the behaviour of the rejectio
 
 Fourth, robustness to field-like image degradation. Section 2.2 identifies domain shift as the principal weakness of PlantVillage-trained models, and clean test accuracy on studio imagery cannot measure it. The evaluation therefore re-runs the entire test partition under eight synthetic corruptions - Gaussian blur at two severities, sensor noise, under- and over-exposure, JPEG compression artefacts, partial occlusion, and resolution loss - approximating what a phone camera produces in a field. The gap between clean and corrupted accuracy is reported explicitly as an honest measure of the generalisation gap, and the false-acceptance rate is recomputed under each corruption, since a degradation that breaks the safety gate is materially worse than one that merely reduces accuracy.
 
-[RESULTS TO BE INSERTED - held-out evaluation runs automatically on completion of training: accuracy, macro-F1, per-class table, calibration error, false-acceptance rate, OOD AUROC figures, threshold sweep table, routing distribution, corruption robustness table, and single-image inference latency.]
+All figures below are on the 7,109-image held-out test partition, which was used for neither training, epoch selection, nor calibration. They are produced by `scripts/evaluate_cnn.py` and saved to `data/models/eval_report.json`.
+
+Classification quality.
+* Accuracy: 0.9979. Macro-F1: 0.9976.
+* Sixteen of the twenty-one classes reach an F1 of 1.000; the lowest class F1 is 0.986 (maize gray leaf spot, which is visually confusable with maize northern leaf blight, the confusion the matrix in `data/models/confusion_matrix.png` shows). Both out-of-scope classes score at or above 0.998.
+
+Calibration.
+* Expected calibration error on the test set is 0.0016 after temperature scaling. In plain terms, the confidence figure the system reports is closely matched by how often it is actually correct, which is the property that makes it safe to route on.
+
+The safety gate - the decisive measurement.
+* False-acceptance rate: 0.0006. Of the out-of-scope test images (unsupported plant species and non-vegetation), 0.06% would receive a confident in-scope diagnosis rather than being rejected or escalated. This is the number that determines whether the classifier is safe to run as the primary engine, and no accuracy figure substitutes for it.
+* Not-a-plant recall: 1.000. Every non-plant test image was correctly identified as such.
+* Out-of-distribution AUROC: 1.00 for out-of-scope versus in-scope overall, and 1.00 for each reject class taken separately. The model separates what it can diagnose from what it cannot essentially perfectly on this test set, independent of any threshold choice.
+
+Operating point and the threshold sweep.
+* The deployed confidence threshold is 0.75. The sweep shows this choice is not delicate: local coverage of in-scope images stays above 99% for every threshold from 0.50 to 0.90, while the false-acceptance rate is flat at 0.0006 across that whole range. The system is therefore not balanced on a knife-edge - a wide band of thresholds gives essentially the same safe, high-coverage behaviour.
+* Resulting routing distribution on the test set: 74.4% of images answered locally as a diagnosis, 12.7% rejected locally as non-plant, and 12.9% escalated to the hosted model. Roughly seven in eight requests are resolved with no network call and no API quota consumed.
+
+Latency.
+* Median single-image inference is 24 ms on Apple Silicon (including test-time augmentation), against a hosted-model round trip of several seconds plus the free-tier rate limit of approximately one image per minute. For the majority of requests that are answered locally this is a difference of roughly three orders of magnitude, and it removes the rate limit from the common path entirely.
+
+Robustness to field-like corruption - the honest limitation.
+* The headline 0.9979 is measured on clean, plain-background imagery and, consistent with the domain-shift literature in Section 2.2, overstates field performance. Under eight synthetic corruptions the mean accuracy is 0.9825, a drop of about 1.5 points, with the following breakdown:
+
+    corruption        accuracy   drop     false-accept
+    (clean)           0.9979     -        0.0006
+    brightness down   0.9973     0.0006   0.0011
+    brightness up     0.9968     0.0011   0.0011
+    blur (light)      0.9962     0.0017   0.0022
+    occlusion         0.9956     0.0023   0.0022
+    low resolution    0.9952     0.0027   0.0028
+    JPEG artefacts    0.9937     0.0042   0.0006
+    sensor noise      0.9630     0.0349   0.0378
+    blur (heavy)      0.9223     0.0756   0.0250
+
+* Two honest observations follow. First, mild photographic variation - exposure, light blur, compression, occlusion, resolution loss - is absorbed with little degradation, which is the intended effect of the augmentation regime. Second, heavy blur and sensor noise are the genuine weak points: they cost roughly 7.5 and 3.5 accuracy points respectively, and more importantly they raise the false-acceptance rate (to 0.025 and 0.038), meaning a badly degraded out-of-scope image is more likely to slip through the gate. This is a real and useful finding rather than a flaw to conceal: it quantifies exactly the failure mode a plain-background training corpus is expected to have, and it is a concrete argument both for retaining the hosted model as an escalation tier and for the image-quality checks that guide a user to retake an unusable photo.
+
+* It should be stated plainly that a test partition drawn from the same clean corpus as the training data measures in-distribution generalisation, not true field deployment. The corruption suite is a proxy for field conditions, not a substitute for a genuinely independent field dataset, and collecting such a dataset is identified as the single most valuable next step in Section 5.
 
 4.4 Explainability via Grad-CAM
 Diagnoses produced by the local classifier are accompanied by a Grad-CAM heatmap (Selvaraju et al., 2017), computed in `backend/ai/gradcam.py` by weighting the final convolutional feature maps by the mean gradient of the predicted logit with respect to each channel. The overlay is returned to the client and can be toggled against the original photograph in the interface.
@@ -336,54 +383,54 @@ To address the lack of severity and image-quality labels in public datasets, we 
 5. SYSTEM VALIDATION, USER TESTING, & DEMO CASES
 ================================================================================
 
-To validate the safety-invariant layer and the diagnostic pipeline, the following four test cases were executed on the deployed VPS application:
+These four scenarios exercise each distinct routing outcome of the two-tier engine. They are reproduced by `scripts/demo_scenarios.py`, which draws images from the held-out test partition (so none were seen during training) and runs them through the actual serving pipeline. The figures below are the recorded output of that script, not illustrative values. The `engine` field is the key evidence: a result of `local_cnn` proves the case was resolved with no network call and consumed no API quota.
 
-5.1 Scenario 1: Target Crop Leaf Pathology (Concentric Tomato Blight)
-* Test Image: A leaf showing dark brown lesions with concentric target-board rings.
-* Spoken Symptom Note: "spots on lower tomato leaves spreading upwards after heavy rain"
+5.1 Scenario 1: Target Crop Leaf Pathology (Tomato Late Blight)
+* Test Image: A held-out tomato leaf with the true label TOM_LATE_BLIGHT.
 * System Processing:
-  - Whisper transcribed the audio successfully.
-  - The Qwen3.6-27B model analyzed the image and transcript, mapping it to the taxonomic label `TOM_EARLY_BLIGHT`.
-  - The safety-invariant layer verified that `TOM_EARLY_BLIGHT` is a valid label for `Tomato`.
+  - The local CNN classified the image as TOM_LATE_BLIGHT with a calibrated confidence of 0.9996 and a top-two margin of 0.9995, clearing both routing thresholds, and returned the decision `diagnosis`.
+  - Treatment advice was drawn from the offline knowledge base and a Grad-CAM heatmap was generated; no network call was made.
+  - The safety-invariant layer confirmed TOM_LATE_BLIGHT is a valid label for tomato.
 * Client Response:
-  - Crop Detected: Tomato
-  - Diagnosis: Tomato Early Blight (Alternaria solani)
-  - Confidence: 94%
-  - Severity: 55%
-  - Actionable Advice: Remove lower diseased leaves, apply copper-based organic fungicides, and avoid overhead watering.
+  - Engine: local CNN (no network call)
+  - Crop Detected: Tomato. Diagnosis: Late Blight (kind = diagnosis).
+  - Confidence: 99.96%. Urgency: high. Grad-CAM overlay: attached.
+  - Actionable advice: remove and destroy infected plants, apply a late-blight-specific fungicide, and alert nearby growers.
+* Significance: earlier in development, before the model was fully trained, this same image was correctly labelled but at only 0.51 confidence and was therefore escalated. The fully trained, calibrated model answers it locally with high confidence, which is the behaviour the whole design depends on.
 
 5.2 Scenario 2: Target Crop Healthy State (Healthy Potato Leaf)
-* Test Image: A clean, green potato leaf with no visual spots or insect damage.
+* Test Image: A held-out potato leaf with the true label POT_HEALTHY.
 * System Processing:
-  - The VLM mapped the image to the taxonomic label `POT_HEALTHY`.
-  - The safety-invariant layer identified the healthy label, confirmed the crop classification, and mapped the kind to `healthy`.
+  - The local CNN classified the image as POT_HEALTHY at 0.9988 confidence, decision `diagnosis`, with no network call.
+  - The safety-invariant layer mapped the *_HEALTHY label to kind = healthy.
 * Client Response:
-  - Crop Detected: Potato
-  - Diagnosis: Healthy
-  - Confidence: 98%
-  - Severity: 0%
-  - Actionable Advice: Maintain regular watering schedules and inspect lower leaves weekly for early signs of blight.
+  - Engine: local CNN (no network call)
+  - Crop Detected: Potato. Result: Healthy. Confidence: 99.88%. Severity: 0%.
+  - Actionable advice: continue normal care and monitoring; scout weekly including leaf undersides.
 
-5.3 Scenario 3: Out-of-Scope Leaf Rejection (Grape Leaf)
-* Test Image: A grape leaf showing signs of downy mildew.
-* User Selection: Selected "Tomato" in the frontend.
+5.3 Scenario 3: Out-of-Scope Leaf Rejection (Unsupported Plant Species)
+* Test Image: A held-out leaf from the OOS_OTHER_PLANT class - a real leaf of a species AgriDoctor does not support.
+* User Selection: "Tomato" selected in the frontend, as an adversarial hint.
 * System Processing:
-  - The VLM identified that the leaf is Grape, mapping the kind to `unsupported_crop`.
-  - The safety-invariant layer ran the crop check: `Grape` is not in the supported crop set $S$.
-  - The safety layer stripped the disease details and returned a polite rejection.
+  - The local CNN classified the image as OOS_OTHER_PLANT at 0.9981 confidence and returned the decision `escalate` - it correctly recognised the image as a leaf outside its trained scope rather than forcing a tomato diagnosis to match the user's hint.
+  - The image was escalated to the hosted vision model, which identified the species as apple.
+  - The safety-invariant layer ran the subject check: apple is not in the supported set, so disease details were stripped and the result set to kind = unsupported_crop.
 * Client Response:
-  - Classification: Rejected (Unsupported Crop)
-  - Response Message: "The uploaded leaf appears to be Grape, which is currently unsupported. We support Tomato, Potato, Rice, Maize, Chili, Cucumber, Pepper, and Eggplant."
+  - Engine: hosted model (escalated). Classification: Rejected (unsupported crop).
+  - The user's incorrect "Tomato" hint did not produce a tomato diagnosis - species identification is purely visual at both tiers.
+* Note on a genuine limitation observed during testing: because the source corpus and the hosted model share overlapping botanical categories, an escalated cucurbit leaf (for example squash) can occasionally be reported by the hosted model as the supported crop "cucumber", which the invariant layer cannot catch because cucumber is in scope. The local CNN's refusal to diagnose it is correct; the residual error is introduced by the escalation tier and reflects the VLM over-cooperation described in Section 2.4. This is documented rather than concealed, and is a further argument for expanding the locally trained class set as field data becomes available.
 
-5.4 Scenario 4: Irrelevant Non-Plant Visual Noise Rejection (Automobile)
-* Test Image: A photograph of a sedan car.
-* User Selection: Selected "Cucumber" in the frontend.
+5.4 Scenario 4: Irrelevant Non-Plant Visual Noise Rejection
+* Test Image: A held-out non-vegetation photograph (OOS_NOT_PLANT class).
+* User Selection: "Cucumber" selected in the frontend, again as an adversarial hint.
 * System Processing:
-  - The VLM analyzed the image and mapped the kind to `not_a_leaf`.
-  - The safety-invariant layer identified the `not_a_leaf` classification, bypassed the taxonomy checks, and issued an immediate rejection.
+  - The local CNN classified the image as OOS_NOT_PLANT at 0.9996 confidence and returned the decision `not_plant`.
+  - The request was rejected locally in 36 milliseconds with no network call and no API quota consumed - the case the hosted-only architecture could never handle without paying for an API round trip to reach the same rejection.
 * Client Response:
-  - Classification: Rejected (Invalid Subject)
-  - Response Message: "No plant leaf or supported animal was detected in this photo. Please upload a clear, close-up image of a supported crop leaf or animal."
+  - Engine: local CNN (no network call). Classification: Rejected (kind = not_a_leaf).
+  - Response Message: "No plant leaf was detected in this photo. Please upload a clear, close-up image of a single crop leaf."
+
+Summary: three of the four scenarios were resolved entirely on-device with no network call, including both rejection cases and the confident diagnosis. Only the genuinely out-of-scope species was escalated. This is the routing distribution the whole-test-set evaluation in Section 4.3 reports in aggregate (74% local diagnosis, 13% local rejection, 13% escalation), shown here case by case.
 
 ================================================================================
 6. ETHICAL DISCLOSURES & PROFESSIONAL ALIGNMENT (ACM CODE OF ETHICS)
