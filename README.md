@@ -182,8 +182,6 @@ that subject — the **Engine** column below is the honest split:
 | 🌾 Rice      | Blast, Brown Spot, Bacterial Leaf Blight, Tungro, Sheath Blight, Stem Borer | ☁️ Escalates |
 | 🌶️ Chili     | Anthracnose, Bacterial Wilt, Leaf Curl Virus, Powdery Mildew, Thrips      | ☁️ Escalates |
 | 🥒 Cucumber  | Powdery Mildew, Downy Mildew, Angular Leaf Spot, Mosaic Virus, Anthracnose | ☁️ Escalates |
-| 🍆 Eggplant  | Verticillium Wilt, Fruit Rot, Leaf Spot, Flea Beetle, Mites               | ☁️ Escalates |
-| 🐄 Cattle · 🐐 Goat · 🐑 Sheep · 🐔 Poultry | Visible skin/eye/foot conditions (FMD, LSD, mange, orf, footrot, pinkeye…) | ☁️ Escalates |
 
 The split isn't a design preference — it's a **data** constraint. The public
 PlantVillage corpus only contains tomato, potato, pepper and maize, so those four
